@@ -96,16 +96,7 @@ cd progrockdiffusion
 
 ## Install the required libraries and tools
 ```
-git clone https://github.com/crowsonkb/guided-diffusion
-git clone https://github.com/openai/CLIP.git
-git clone https://github.com/assafshocher/ResizeRight.git
-git clone https://github.com/facebookresearch/SLIP.git
-git clone https://github.com/CompVis/latent-diffusion.git
-git clone https://github.com/CompVis/taming-transformers
-pip install -e ./CLIP
-pip install -e ./guided-diffusion
-pip install -e ./taming-transformers
-pip install lpips datetime timm
+pip install -r requirements.base.txt
 ```
 ## Basic or GPU Accelerated PyTorch
 You defnitely should install the GPU version if you have an NVIDIA card. It's almost 30x faster.
@@ -113,31 +104,24 @@ Otherwise, you can install the CPU version instead (required for MacOS)
 
 ### EITHER Install GPU accelerated PyTorch
 ```
-pip install torch==1.10.2+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
-pip install torchvision==0.11.3+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
-pip install torchaudio==0.10.2+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+pip install -r requirements.gpu.txt
 ```
 
 ### OR install the basic CPU version of PyTorch (warning - very slow!)
 ```
-pip install torch==1.11.0+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
-pip install torchvision==0.12.0+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
-pip install torchaudio==0.11.0+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
+pip install -r requirements.cpu.txt
 ```
 
 ## Install remaining libraries and tools
+
 **[MacOS]**
+
 ```
 export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1
 export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1
 pip install grpcio
 ```
-**[All Platforms]**
-```
-pip install ipywidgets omegaconf pytorch_lightning einops
-pip install matplotlib pandas
-conda install opencv
-```
+
 **[Linux]** Depending on your Linux platform, you may get an error about libGL.so.1
 If you do, try installing these dependencies:
 ```

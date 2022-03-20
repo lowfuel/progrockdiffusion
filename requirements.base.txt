@@ -1,0 +1,13 @@
+clip @ git+https://github.com/openai/CLIP.git@40f5484c1c74edd83cb9cf687c6ab92b28d8b656
+guided-diffusion @ git+https://github.com/crowsonkb/guided-diffusion.git@77db72935820a00d3a28737b9be322a39edcd24f
+latent-diffusion @ git+https://github.com/CompVis/latent-diffusion.git@main
+taming-transformers @ git+https://github.com/CompVis/taming-transformers.git@master
+datetime == 4.4
+timm == 0.5.4
+lpips == 0.1.4
+ipywidgets == 7.7.0
+omegaconf == 2.1.1
+pytorch_lightning == 1.5.10
+einops == 0.4.1
+matplotlib == 3.5.1
+pandas == 1.4.1
