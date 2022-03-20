@@ -51,7 +51,7 @@ Stripped down for basic Python use by Jason Hough
 
 import os
 from os import path
-
+import shutil
 root_path = os.getcwd()
 
 #Simple create paths taken with modifications from Datamosh's Batch VQGAN+CLIP notebook
@@ -82,6 +82,9 @@ if sys.platform == 'win32':
     ssl._create_default_https_context = ssl._create_unverified_context
     python_example = "python"
 
+#Uncomment the below line if you're getting an error about OMP: Error #15.
+#os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
+
 from dataclasses import dataclass
 from functools import partial
 import cv2
@@ -102,14 +105,14 @@ from torch import nn
 from torch.nn import functional as F
 import torchvision.transforms as T
 import torchvision.transforms.functional as TF
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 sys.path.append(f'{root_path}/ResizeRight')
 sys.path.append(f'{root_path}/CLIP')
 sys.path.append(f'{root_path}/guided-diffusion')
-sys.path.append(f'{root_path}/SLIP')
+#sys.path.append(f'{root_path}/SLIP')
 import clip
 from resize_right import resize
-from models import SLIP_VITB16, SLIP, SLIP_VITL16
+#from models import SLIP_VITB16, SLIP, SLIP_VITL16
 from guided_diffusion.script_util import create_model_and_diffusion, model_and_diffusion_defaults
 from datetime import datetime
 import numpy as np
@@ -158,11 +161,15 @@ To use multiple prompts with optional weight values:
 
 You can ignore the seed coming from a settings file by adding -i, resulting in a new random seed
 
-To force use of the CPU for image generation, add a -c or --cpu (warning: VERY slow):
- {python_example} prd.py -c
+To force use of the CPU for image generation, add a -c or --cpu with how many threads to use (warning: VERY slow):
+ {python_example} prd.py -c 16
 
 To generate a checkpoint image at 20% steps, for use as an init image in future runs, add -g or --geninit:
  {python_example} prd.py -g
+
+To use a checkpoint image at 20% steps add -u or --useinit:
+ {python_example} prd.py -u
+
 '''
 
 my_parser = argparse.ArgumentParser(prog='ProgRockDiffusion', description='Generate images from text prompts.', epilog=example_text, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -170,8 +177,9 @@ my_parser.add_argument('-s', '--settings', action='store', required=False, defau
 my_parser.add_argument('-o', '--output', action='store', required=False, help='What output directory to use within images_out')
 my_parser.add_argument('-p', '--prompt', action='append', required=False, help='Override the prompt')
 my_parser.add_argument('-i', '--ignoreseed', action='store_true', required=False, help='Ignores the random seed in the settings file')
-my_parser.add_argument('-c', '--cpu', action='store_true', required=False, default=False, help='Force use of CPU instead of GPU')
+my_parser.add_argument('-c', '--cpu', type=int, nargs='?', action='store', required=False, default=False, const=0, help='Force use of CPU instead of GPU, and how many threads to run')
 my_parser.add_argument('-g', '--geninit', action='store_true', required=False, default=False, help='Save a partial image at 20%, for use as later init image')
+my_parser.add_argument('-u', '--useinit', action='store_true', required=False, default=False, help='Use the specified init image')
 
 cl_args = my_parser.parse_args()
 
@@ -217,6 +225,7 @@ width_height = [(settings_file['width']), (settings_file['height'])]
 diffusion_model = (settings_file['diffusion_model'])
 use_secondary_model = (settings_file['use_secondary_model'])
 steps = (settings_file['steps'])
+sampling_mode = (settings_file['sampling_mode'])
 diffusion_steps = (settings_file['diffusion_steps'])
 ViTB32 = (settings_file['ViTB32'])
 ViTB16 = (settings_file['ViTB16'])
@@ -225,8 +234,9 @@ RN101 = (settings_file['RN101'])
 RN50 = (settings_file['RN50'])
 RN50x4 = (settings_file['RN50x4'])
 RN50x16 = (settings_file['RN50x16'])
-SLIPB16 = (settings_file['SLIPB16'])
-SLIPL16 = (settings_file['SLIPL16'])
+RN50x64 = (settings_file['RN50x64'])
+#SLIPB16 = (settings_file['SLIPB16'])
+#SLIPL16 = (settings_file['SLIPL16'])
 cut_overview = (settings_file['cut_overview'])
 cut_innercut = (settings_file['cut_innercut'])
 cut_ic_pow = (settings_file['cut_ic_pow'])
@@ -254,10 +264,27 @@ if cl_args.ignoreseed:
 
 if cl_args.geninit:
     geninit = True
-    print('Geninit mode enabled. A checkpoint image will be saved at 20% of steps.')
+    print('GenInit mode enabled. A checkpoint image will be saved at 20% of steps.')
 else:
     geninit = False
-    
+
+if cl_args.useinit:
+    if skip_steps == 0: skip_steps = (int(steps * 0.2)) # don't change skip_steps if the settings file specified one
+    if path.exists(f'{cl_args.useinit}'):
+        useinit = True
+        init_image = cl_args.useinit
+        print(f'UseInit mode is using {cl_args.useinit} and starting at {skip_steps}.')
+    else:
+        init_image = 'geninit.png'
+        if path.exists(init_image):
+            print(f'UseInit mode is using {init_image} and starting at {skip_steps}.')
+            useinit = True
+        else:
+            print('No init image found. Uneinit mode canceled.')
+            useinit = False
+else:
+    useinit = False
+
 #Automatic Eta based on steps
 if eta == 'auto':
     maxetasteps = 315
@@ -303,27 +330,30 @@ if clip_guidance_scale == 'auto':
 import torch
 
 # Decide if we're using CPU or GPU, with appropriate settings depending...
-if cl_args.cpu:
-    device = torch.device('cpu')
+if cl_args.cpu or not torch.cuda.is_available():
+    DEVICE = torch.device('cpu')
+    device = DEVICE
     fp16_mode = False
     cores = os.cpu_count()
-    print(f'Detected {cores} cores for CPU mode.')
+    if cl_args.cpu == 0:
+        print(f'No thread count specified. Using detected {cores} cores for CPU mode.')
+    elif cl_args.cpu > cores:
+        print(f'Too many threads specified. Using detected {cores} cores for CPU mode.')
+    else:
+        cores = int(cl_args.cpu)
+        print(f'Using {cores} cores for CPU mode.')
     torch.set_num_threads(cores)
-elif torch.cuda.is_available():
-    device = torch.device('cuda:0')
+else:
+    DEVICE = torch.device('cuda:0')
+    device = DEVICE
     fp16_mode = True
     if torch.cuda.get_device_capability(device) == (8,0): ## A100 fix thanks to Emad
       print('Disabling CUDNN for A100 gpu', file=sys.stderr)
       torch.backends.cudnn.enabled = False
-else:
-    device = torch.device('cpu')
-    cl_args.cpu = True #even if it wasn't specified, we're using it because we're not on GPU
-    fp16_mode = False
-    cores = os.cpu_count()
-    print(f'Detected {cores} cores for CPU mode.')
-    torch.set_num_threads(cores)
 
 print('Using device:', device)
+
+from os.path import exists
 
 #@title 2.2 Define necessary functions
 
@@ -530,7 +560,7 @@ class MakeCutoutsDango(nn.Module):
               T.Lambda(lambda x: x + torch.randn_like(x) * 0.01),
               # T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
           ])
-        elif  args.animation_mode == '2D':
+        elif  args.animation_mode == '2D' or args.animation_mode == '3D':
           self.augs = T.Compose([
               T.RandomHorizontalFlip(p=0.4),
               T.Lambda(lambda x: x + torch.randn_like(x) * 0.01),
@@ -670,7 +700,7 @@ def do_run():
           init_scale = args.frames_scale
           skip_steps = args.calc_frames_skip_steps
 
-      if  args.animation_mode == "Video Input":
+      if args.animation_mode == "Video Input":
         seed = seed + 1
         init_image = f'{videoFramesFolder}/{frame_num+1:04}.jpg'
         init_scale = args.frames_scale
@@ -682,7 +712,7 @@ def do_run():
           np.random.seed(seed)
           random.seed(seed)
           torch.manual_seed(seed)
-          torch.cuda.manual_seed_all(seed)
+          #torch.cuda.manual_seed_all(seed) # jason -- commented this out because the above handles it and is device agnostic
           torch.backends.cudnn.deterministic = True
 
       target_embeds, weights = [], []
@@ -716,7 +746,8 @@ def do_run():
 
                 if args.fuzzy_prompt:
                     for i in range(25):
-                        model_stat["target_embeds"].append((txt + torch.randn(txt.shape).cuda() * args.rand_mag).clamp(0,1))
+                        #model_stat["target_embeds"].append((txt + torch.randn(txt.shape).cuda() * args.rand_mag).clamp(0,1)) - jason: removed trying to make this device agnostic
+                        model_stat["target_embeds"].append((txt + torch.randn(txt.shape).to(device) * args.rand_mag).clamp(0,1))
                         model_stat["weights"].append(weight)
                 else:
                     model_stat["target_embeds"].append(txt)
@@ -732,7 +763,8 @@ def do_run():
                   embed = clip_model.encode_image(normalize(batch)).float()
                   if fuzzy_prompt:
                       for i in range(25):
-                          model_stat["target_embeds"].append((embed + torch.randn(embed.shape).cuda() * rand_mag).clamp(0,1))
+                          #model_stat["target_embeds"].append((embed + torch.randn(embed.shape).cuda() * rand_mag).clamp(0,1)) - jason: removed trying to make this device agnostic
+                          model_stat["target_embeds"].append((embed + torch.randn(embed.shape).to(device) * rand_mag).clamp(0,1))
                           weights.extend([weight / cutn] * cutn)
                   else:
                       model_stat["target_embeds"].append(embed)
@@ -828,16 +860,16 @@ def do_run():
               return grad * magnitude.clamp(max=args.clamp_max) / magnitude  #min=-0.02, min=-clamp_max,
           return grad
 
-      if model_config['timestep_respacing'].startswith('ddim'):
+      if args.sampling_mode == 'ddim':
           sample_fn = diffusion.ddim_sample_loop_progressive
       else:
-          sample_fn = diffusion.p_sample_loop_progressive
+          sample_fn = diffusion.plms_sample_loop_progressive
 
 
       image_display = Output()
       for i in range(args.n_batches):
           if args.animation_mode == 'None':
-            display.clear_output(wait=True)
+            #display.clear_output(wait=True)
             batchBar = tqdm(range(args.n_batches), desc ="Batches")
             batchBar.n = i
             batchBar.refresh()
@@ -851,7 +883,7 @@ def do_run():
           if perlin_init:
               init = regen_perlin()
 
-          if model_config['timestep_respacing'].startswith('ddim'):
+          if args.sampling_mode == 'ddim':
               samples = sample_fn(
                   model,
                   (batch_size, 3, args.side_y, args.side_x),
@@ -875,6 +907,7 @@ def do_run():
                   skip_timesteps=skip_steps,
                   init_image=init,
                   randomize_class=randomize_class,
+                  order=2,
               )
 
 
@@ -920,10 +953,15 @@ def do_run():
                             image.save(f'{batchFolder}/{filename}')
                       else:
                         if j in args.intermediate_saves:
+                          print('Saving partial')
                           if args.intermediates_in_subfolder is True:
                             image.save(f'{partialFolder}/{filename}')
                           else:
                             image.save(f'{batchFolder}/{filename}')
+                          if geninit is True:
+                              image.save('geninit.png')
+                              raise KeyboardInterrupt
+
                       if cur_t == -1:
                         if frame_num == 0:
                           save_settings()
@@ -985,6 +1023,7 @@ def save_settings():
     'diffusion_model': diffusion_model,
     'use_secondary_model': use_secondary_model,
     'diffusion_steps': diffusion_steps,
+    'sampling_mode': sampling_mode,
     'ViTB32': ViTB32,
     'ViTB16': ViTB16,
     'ViTL14': ViTL14,
@@ -992,8 +1031,9 @@ def save_settings():
     'RN50': RN50,
     'RN50x4': RN50x4,
     'RN50x16': RN50x16,
-    'SLIPB16': SLIPB16,
-    'SLIPL16': SLIPL16,
+    'RN50x64': RN50x64,
+    #'SLIPB16': SLIPB16,
+    #'SLIPL16': SLIPL16,
     'cut_overview': str(cut_overview),
     'cut_innercut': str(cut_innercut),
     'cut_ic_pow': cut_ic_pow,
@@ -1386,7 +1426,8 @@ def load_model_from_config(config, ckpt):
     sd = pl_sd["state_dict"]
     model = instantiate_from_config(config.model)
     m, u = model.load_state_dict(sd, strict=False)
-    if not cl_args.cpu: model.cuda() #Can't do CUDA stuff when we're running on CPU
+    #if not cl_args.cpu: model.cuda() #Can't do CUDA stuff when we're running on CPU
+    model.to(device)
     model.eval()
     return {"model": model}, global_step
 
@@ -1721,7 +1762,7 @@ use_checkpoint = True #@param {type: 'boolean'}
 #RN50x16 = False #@param{type:"boolean"} High RAM requirement, high accuracy
 #SLIPB16 = False # param{type:"boolean"}
 #SLIPL16 = False # param{type:"boolean"}
-
+other_sampling_mode = 'bicubic'
 #@markdown If you're having issues with model downloads, check this to compare SHA's:
 check_model_SHA = False #@param{type:"boolean"}
 
@@ -1860,39 +1901,9 @@ if ViTL14 is True: clip_models.append(clip.load('ViT-L/14', jit=False)[0].eval()
 if RN50 is True: clip_models.append(clip.load('RN50', jit=False)[0].eval().requires_grad_(False).to(device))
 if RN50x4 is True: clip_models.append(clip.load('RN50x4', jit=False)[0].eval().requires_grad_(False).to(device))
 if RN50x16 is True: clip_models.append(clip.load('RN50x16', jit=False)[0].eval().requires_grad_(False).to(device))
+if RN50x64 is True: clip_models.append(clip.load('RN50x64', jit=False)[0].eval().requires_grad_(False).to(device))
 if RN101 is True: clip_models.append(clip.load('RN101', jit=False)[0].eval().requires_grad_(False).to(device))
 
-if SLIPB16:
-  SLIPB16model = SLIP_VITB16(ssl_mlp_dim=4096, ssl_emb_dim=256)
-  if not os.path.exists(f'{model_path}/slip_base_100ep.pt'):
-    #!wget https://dl.fbaipublicfiles.com/slip/slip_base_100ep.pt -P {model_path}
-    print('Downloading SLIP_VITB16 model, this might take a while...')
-    urllib.request.urlretrieve("https://dl.fbaipublicfiles.com/slip/slip_base_100ep.pt", model_path+'/slip_base_100ep.pt')
-  sd = torch.load(f'{model_path}/slip_base_100ep.pt')
-  real_sd = {}
-  for k, v in sd['state_dict'].items():
-    real_sd['.'.join(k.split('.')[1:])] = v
-  del sd
-  SLIPB16model.load_state_dict(real_sd)
-  SLIPB16model.requires_grad_(False).eval().to(device)
-
-  clip_models.append(SLIPB16model)
-
-if SLIPL16:
-  SLIPL16model = SLIP_VITL16(ssl_mlp_dim=4096, ssl_emb_dim=256)
-  if not os.path.exists(f'{model_path}/slip_large_100ep.pt'):
-    #!wget https://dl.fbaipublicfiles.com/slip/slip_large_100ep.pt -P {model_path}
-    print('Downloading SLIP_VITL16 model, this might take a while...')
-    urllib.request.urlretrieve("https://dl.fbaipublicfiles.com/slip/slip_large_100ep.pt", model_path+'/slip_large_100ep.pt')
-  sd = torch.load(f'{model_path}/slip_large_100ep.pt')
-  real_sd = {}
-  for k, v in sd['state_dict'].items():
-    real_sd['.'.join(k.split('.')[1:])] = v
-  del sd
-  SLIPL16model.load_state_dict(real_sd)
-  SLIPL16model.requires_grad_(False).eval().to(device)
-
-  clip_models.append(SLIPL16model)
 
 normalize = T.Normalize(mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711])
 lpips_model = lpips.LPIPS(net='vgg').to(device)
@@ -1960,8 +1971,7 @@ if animation_mode == "Video Input":
   except:
     print('')
   vf = f'"select=not(mod(n\,{extract_nth_frame}))"'
-  #TODO remove or fix animation stuff
-  #!ffmpeg -i {video_init_path} -vf {vf} -vsync vfr -q:v 2 -loglevel error -stats {videoFramesFolder}/%04d.jpg
+  subprocess.run(['ffmpeg', '-i', f'{video_init_path}', '-vf', f'{vf}', '-vsync', 'vfr', '-q:v', '2', '-loglevel', 'error', '-stats', f'{videoFramesFolder}/%04d.jpg'], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
 
 #@markdown ---
@@ -2169,7 +2179,6 @@ else:
     zoom = float(zoom)
     translation_x = float(translation_x)
     translation_y = float(translation_y)
-
 """### Extra Settings
  Partial Saves, Diffusion Sharpening, Advanced Settings, Cutn Scheduling
 """
@@ -2336,6 +2345,7 @@ args = {
     'batch_size':batch_size,
     'batch_name': batch_name,
     'steps': steps,
+    'sampling_mode': sampling_mode,
     'width_height': width_height,
     'clip_guidance_scale': clip_guidance_scale,
     'tv_scale': tv_scale,
