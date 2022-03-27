@@ -11,3 +11,4 @@ pytorch_lightning == 1.5.10
 einops == 0.4.1
 matplotlib == 3.5.1
 pandas == 1.4.1
+opencv-python-headless == 4.5.5.64

@@ -6,7 +6,6 @@ images_out/
 init_images/
 latent-diffusion/
 models/
-ResizeRight/
 taming-transformers/
 progress.png
 

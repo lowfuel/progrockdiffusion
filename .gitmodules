@@ -1,0 +1,3 @@
+[submodule "ResizeRight"]
+	path = ResizeRight
+	url = https://github.com/assafshocher/ResizeRight.git
