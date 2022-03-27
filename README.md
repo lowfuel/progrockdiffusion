@@ -87,7 +87,7 @@ conda activate progrockdiffusion
 Now change to whatever base directory you want ProgRockDiffusion to go into.
 ## Clone the prog rock diffusion repo
 ```
-git clone https://github.com/lowfuel/progrockdiffusion.git
+git clone --recurse-submodules https://github.com/lowfuel/progrockdiffusion.git
 cd progrockdiffusion
 ```
 **Note: the "cd" command above is important, as the next steps will add additional libraries and data to ProgRockDiffusion**
