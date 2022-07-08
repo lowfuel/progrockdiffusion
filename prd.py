@@ -274,6 +274,9 @@ def parse_args():
     If you already upscaled your gobiginit image, you can skip the resizing process. Provide the scaling factor used:
      {python_example} prd.py --gobig --gobiginit "some_directory/image.png" --gobiginit_scaled 2
 
+    To manually override the number of slices used for gobig:
+     {python_example} prd.py --gobig --gobig_slices 6
+
     Alternative scaling method is to use ESRGAN (note: RealESRGAN must be installed and in your path):
      {python_example} prd.py --esrgan
     More information on instlaling it is here: https://github.com/xinntao/Real-ESRGAN
@@ -383,6 +386,17 @@ def parse_args():
     )
 
     my_parser.add_argument(
+        '--gobig_slices',
+        type=int,
+        nargs='?',
+        action='store',
+        required=False,
+        default=False,
+        const=5,
+        help='To manually override the calculated number of slices for gobig'
+    )
+
+    my_parser.add_argument(
         '--esrgan',
         action='store_true',
         required=False,
@@ -460,6 +474,45 @@ def clampval(var_name, minval, val, maxval):
     else:
         return val
 
+# Dynamic value - takes ready-made possible options within a string and returns the string with an option randomly selected
+# Format is "I will return <Value1|Value2|Value3> in this string"
+# Which would come back as "I will return Value2 in this string" (for example)
+# Optionally if a value of ^^# is first, it means to return that many dynamic values,
+# so <^^2|Value1|Value2|Value3> in the above example would become:
+# "I will return Value3 Value2 in this string"
+# note: for now assumes a string for return. TODO return a desired type
+
+
+def dynamic_value(incoming):
+    if type(incoming) == str:  # we only need to do something if it's a string...
+        if incoming == "auto" or incoming == "random":
+            return incoming
+        elif "<" in incoming:   # ...and if < is in the string...
+            text = incoming
+            logger.debug(f'Original value: {text}')
+            while "<" in text:
+                start = text.index('<')
+                end = text.index('>')
+                swap = text[(start + 1):end]
+                value = ""
+                count = 1
+                values = swap.split('|')
+                if "^^" in values[0]:
+                    count = values[0]
+                    values.pop(0)
+                    count = int(count[2:])
+                random.shuffle(values)
+                for i in range(count):
+                    value = value + values[i] + " "
+                value = value[:-1]  # remove final space
+                text = text.replace(f'<{swap}>', value)
+            logger.debug(f'Dynamic value: {text}')
+            return text
+        else:
+            return incoming
+    else:
+        return incoming
+
 
 print('\nPROG ROCK DIFFUSION')
 print('-------------------')
@@ -487,20 +540,31 @@ for setting_arg in cl_args.settings:
             if is_json_key_present(settings_file, 'image_prompts'):
                 image_prompts = (settings_file['image_prompts'])
             if is_json_key_present(settings_file, 'clip_guidance_scale'):
-                clip_guidance_scale = clampval('clip_guidance_scale',
-                                               1500, (settings_file['clip_guidance_scale']), 100000)
+                if type(settings_file['clip_guidance_scale']) == str:
+                    clip_guidance_scale = dynamic_value(settings_file['clip_guidance_scale'])
+                else:
+                    clip_guidance_scale = clampval('clip_guidance_scale', 1500, (settings_file['clip_guidance_scale']), 100000)
             if is_json_key_present(settings_file, 'tv_scale'):
-                tv_scale = clampval('tv_scale', 0, (settings_file['tv_scale']), 1000)
+                if (settings_file['tv_scale']) != "auto" and (settings_file['tv_scale']) != "random":
+                    tv_scale = int(dynamic_value(settings_file['tv_scale']))
+                tv_scale = clampval('tv_scale', 0, tv_scale, 1000)
             if is_json_key_present(settings_file, 'range_scale'):
-                range_scale = clampval('range_scale', 0, (settings_file['range_scale']), 1000)
+                if (settings_file['range_scale']) != "auto" and (settings_file['range_scale']) != "random":
+                    range_scale = int(dynamic_value(settings_file['range_scale']))
+                range_scale = clampval('range_scale', 0, range_scale, 1000)
             if is_json_key_present(settings_file, 'sat_scale'):
-                sat_scale = clampval('sat_scale', 0, (settings_file['sat_scale']), 20000)
+                if (settings_file['sat_scale']) != "auto" and (settings_file['sat_scale']) != "random":
+                    sat_scale = int(dynamic_value(settings_file['sat_scale']))
+                sat_scale = clampval('sat_scale', 0, sat_scale, 20000)
             if is_json_key_present(settings_file, 'n_batches'):
                 n_batches = (settings_file['n_batches'])
             if is_json_key_present(settings_file, 'display_rate'):
                 display_rate = (settings_file['display_rate'])
             if is_json_key_present(settings_file, 'cutn_batches'):
-                cutn_batches = (settings_file['cutn_batches'])
+                if type(settings_file['cutn_batches']) == str:
+                    cutn_batches = dynamic_value(settings_file['cutn_batches'])
+                else:
+                    cutn_batches = (settings_file['cutn_batches'])
             if is_json_key_present(settings_file, 'cutn_batches_final'):
                 cutn_batches_final = (settings_file['cutn_batches_final'])
             if is_json_key_present(settings_file, 'max_frames'):
@@ -512,7 +576,7 @@ for setting_arg in cl_args.settings:
             if is_json_key_present(settings_file, 'init_scale'):
                 init_scale = (settings_file['init_scale'])
             if is_json_key_present(settings_file, 'skip_steps'):
-                skip_steps = (settings_file['skip_steps'])
+                skip_steps = int(dynamic_value(settings_file['skip_steps']))
             if is_json_key_present(settings_file, 'skip_steps_ratio'):
                 skip_steps_ratio = (settings_file['skip_steps_ratio'])
             if is_json_key_present(settings_file, 'stop_early'):
@@ -534,7 +598,10 @@ for setting_arg in cl_args.settings:
             if is_json_key_present(settings_file, 'clamp_grad'):
                 clamp_grad = (settings_file['clamp_grad'])
             if is_json_key_present(settings_file, 'clamp_max'):
-                clamp_max = clampval('clamp_max', 0.001, (settings_file['clamp_max']), 0.3)
+                if type(settings_file['clamp_max']) == str:
+                    clamp_max = dynamic_value(settings_file['clamp_max'])
+                else:
+                    clamp_max = clampval('clamp_max', 0.001, settings_file['clamp_max'], 0.3)
             if is_json_key_present(settings_file, 'set_seed'):
                 set_seed = (settings_file['set_seed'])
             if is_json_key_present(settings_file, 'fuzzy_prompt'):
@@ -542,7 +609,9 @@ for setting_arg in cl_args.settings:
             if is_json_key_present(settings_file, 'rand_mag'):
                 rand_mag = clampval('rand_mag', 0.0, (settings_file['rand_mag']), 0.999)
             if is_json_key_present(settings_file, 'eta'):
-                eta = clampval('eta', 0.0, (settings_file['eta']), 0.999)
+                if (settings_file['eta']) != "auto" and (settings_file['eta']) != "random":
+                    eta = float(dynamic_value(settings_file['eta']))
+                eta = clampval('eta', 0.0, eta, 0.999)
             if is_json_key_present(settings_file, 'width'):
                 width_height = [(settings_file['width']),
                                 (settings_file['height'])]
@@ -553,37 +622,38 @@ for setting_arg in cl_args.settings:
             if is_json_key_present(settings_file, 'use_secondary_model'):
                 use_secondary_model = (settings_file['use_secondary_model'])
             if is_json_key_present(settings_file, 'steps'):
-                steps = (settings_file['steps'])
+                steps = int(dynamic_value(settings_file['steps']))
             if is_json_key_present(settings_file, 'sampling_mode'):
                 sampling_mode = (settings_file['sampling_mode'])
             if is_json_key_present(settings_file, 'diffusion_steps'):
                 diffusion_steps = (settings_file['diffusion_steps'])
             if is_json_key_present(settings_file, 'ViTB32'):
-                ViTB32 = (settings_file['ViTB32'])
+                ViTB32 = float(dynamic_value(settings_file['ViTB32']))
             if is_json_key_present(settings_file, 'ViTB16'):
-                ViTB16 = (settings_file['ViTB16'])
+                ViTB16 = float(dynamic_value(settings_file['ViTB16']))
             if is_json_key_present(settings_file, 'ViTL14'):
-                ViTL14 = (settings_file['ViTL14'])
+                ViTL14 = float(dynamic_value(settings_file['ViTL14']))
             if is_json_key_present(settings_file, 'ViTL14_336'):
-                ViTL14_336 = (settings_file['ViTL14_336'])
+                ViTL14_336 = float(dynamic_value(settings_file['ViTL14_336']))
             if is_json_key_present(settings_file, 'RN101'):
-                RN101 = (settings_file['RN101'])
+                RN101 = float(dynamic_value(settings_file['RN101']))
             if is_json_key_present(settings_file, 'RN50'):
-                RN50 = (settings_file['RN50'])
+                RN50 = float(dynamic_value(settings_file['RN50']))
             if is_json_key_present(settings_file, 'RN50x4'):
-                RN50x4 = (settings_file['RN50x4'])
+                RN50x4 = float(dynamic_value(settings_file['RN50x4']))
             if is_json_key_present(settings_file, 'RN50x16'):
-                RN50x16 = (settings_file['RN50x16'])
+                RN50x16 = float(dynamic_value(settings_file['RN50x16']))
             if is_json_key_present(settings_file, 'RN50x64'):
-                RN50x64 = (settings_file['RN50x64'])
+                RN50x64 = float(dynamic_value(settings_file['RN50x64']))
             if is_json_key_present(settings_file, 'cut_overview'):
-                cut_overview = (settings_file['cut_overview'])
+                cut_overview = dynamic_value(settings_file['cut_overview'])
             if is_json_key_present(settings_file, 'cut_innercut'):
-                cut_innercut = (settings_file['cut_innercut'])
+                cut_innercut = dynamic_value(settings_file['cut_innercut'])
             if is_json_key_present(settings_file, 'cut_ic_pow'):
-                cut_ic_pow = (settings_file['cut_ic_pow'])
-                if type(cut_ic_pow) != str:
-                    cut_ic_pow = clampval('cut_ic_pow', 0.0, cut_ic_pow, 100)
+                if type(settings_file['cut_ic_pow']) == str:
+                    cut_ic_pow = dynamic_value(settings_file['cut_ic_pow'])
+                else:
+                    cut_ic_pow = clampval('cut_ic_pow', 0.0, (settings_file['cut_ic_pow']), 100)
             if is_json_key_present(settings_file, 'cut_ic_pow_final'):
                 cut_ic_pow_final = clampval('cut_ic_pow_final', 0.5, (settings_file['cut_ic_pow_final']), 100)
             if is_json_key_present(settings_file, 'cut_icgray_p'):
@@ -675,7 +745,7 @@ for setting_arg in cl_args.settings:
             if is_json_key_present(settings_file, 'symmetry_loss_h'):
                 symmetry_loss_h = (settings_file['symmetry_loss_h'])
             if is_json_key_present(settings_file, 'symm_loss_scale'):
-                symm_loss_scale = (settings_file['symm_loss_scale'])
+                symm_loss_scale = int(dynamic_value(settings_file['symm_loss_scale']))
             if is_json_key_present(settings_file, 'symm_switch'):
                 symm_switch = int(clampval('symm_switch', 1, (settings_file['symm_switch']), steps))
 
@@ -889,44 +959,6 @@ if cl_args.prompt:
     text_prompts["0"] = cl_args.prompt
     print(f'Setting prompt to {text_prompts}')
 
-# WEIGHTED CLIP MODELS - convert old true / false to 1.0 or 0.0
-if ViTB32 == True:
-    ViTB32 = 1.0
-elif ViTB32 == False:
-    ViTB32 = 0.0
-if ViTB16 == True:
-    ViTB16 = 1.0
-elif ViTB16 == False:
-    ViTB16 = 0.0
-if ViTL14 == True:
-    ViTL14 = 1.0
-elif ViTL14 == False:
-    ViTL14 = 0.0
-if ViTL14_336 == True:
-    ViTL14_336 = 1.0
-elif ViTL14_336 == False:
-    ViTL14_336 = 0.0
-if RN101 == True:
-    RN101 = 1.0
-elif RN101 == False:
-    RN101 = 0.0
-if RN50 == True:
-    RN50 = 1.0
-elif RN50 == False:
-    RN50 = 0.0
-if RN50x4 == True:
-    RN50x4 = 1.0
-elif RN50x4 == False:
-    RN50x4 = 0.0
-if RN50x16 == True:
-    RN50x16 = 1.0
-elif RN50x16 == False:
-    RN50x16 = 0.0
-if RN50x64 == True:
-    RN50x64 = 1.0
-elif RN50x64 == False:
-    RN50x64 = 0.0
-
 # PROMPT RANDOMIZERS
 # If any word in the prompt starts and ends with _, replace it with a random line from the corresponding text file
 # For example, _artist_ will replace with a line from artist.txt
@@ -942,36 +974,6 @@ def randomizer(category):
             randomizers.append(line.strip())
     random_item = random.choice(randomizers)
     return(random_item)
-
-# Dynamic value - takes ready-made possible options within a string and returns the string with an option randomly selected
-# Format is "I will return <Value1|Value2|Value3> in this string"
-# Which would come back as "I will return Value2 in this string" (for example)
-# Optionally if a value of ^^# is first, it means to return that many dynamic values,
-# so <^^2|Value1|Value2|Value3> in the above example would become:
-# "I will return Value3 Value2 in this string"
-# note: for now assumes a string for return. TODO return a desired type
-
-
-def dynamic_value(text):
-    logger.debug(f'Original value: {text}')
-    while "<" in text:
-        start = text.index('<')
-        end = text.index('>')
-        swap = text[(start + 1):end]
-        value = ""
-        count = 1
-        values = swap.split('|')
-        if "^^" in values[0]:
-            count = values[0]
-            values.pop(0)
-            count = int(count[2:])
-        random.shuffle(values)
-        for i in range(count):
-            value = value + values[i] + " "
-        value = value[:-1]  # remove final space
-        text = text.replace(f'<{swap}>', value)
-    logger.debug(f'Dynamic value: {text}')
-    return text
 
 
 def randomize_prompts(prompts):
@@ -1326,6 +1328,9 @@ def do_run(batch_num, slice_num=-1):
         if animation_mode == "None":
             frame_num = batch_num
 
+        if frame_num == 0 or batch_num == 0:
+            save_settings()
+
         if args.prompts_series is not None and frame_num >= len(
                 args.prompts_series):
             frame_prompt = args.prompts_series[-1]
@@ -1334,6 +1339,8 @@ def do_run(batch_num, slice_num=-1):
         else:
             frame_prompt = []
 
+        # TODO: Image prompts are being fetched on every cut for every model, which is quite slow.
+        # We should get the image once and keep it in ram, reference it that way.
         if args.image_prompts_series is not None and frame_num >= len(
                 args.image_prompts_series):
             image_prompt = args.image_prompts_series[-1]
@@ -1702,8 +1709,6 @@ def do_run(batch_num, slice_num=-1):
                                     raise KeyboardInterrupt
 
                         if cur_t == -1:
-                            if frame_num == 0 or batch_num == 0:
-                                save_settings()
                             if args.animation_mode != "None":
                                 image.save('prevFrame.png')
                             if args.sharpen_preset != "Off" and animation_mode == "None":
@@ -1754,7 +1759,7 @@ def do_run(batch_num, slice_num=-1):
                 s = steps - cur_t
 
                 # BRIGHTNESS and CONTRAST automatic correction
-                if (s % adjustment_interval == 0) and (s < (steps * .6)) and (fix_brightness_contrast == True):
+                if (s % adjustment_interval == 0) and (s < (steps * .3)) and (fix_brightness_contrast == True):
                     if (high_brightness_adjust
                             and s > high_brightness_start
                             and brightness > high_brightness_threshold):
@@ -2889,7 +2894,10 @@ try:
         if cl_args.gobiginit is None:
             do_run(batch_image)
         if letsgobig:
-            slices_todo = (gobig_scale * gobig_scale) + 1  # we want 5 total slices for a 2x increase, 4 to match the total pixel increase + 1 to cover overlap
+            if cl_args.gobig_slices:
+                slices_todo = cl_args.gobig_slices
+            else:
+                slices_todo = (gobig_scale * gobig_scale) + 1  # we want 5 total slices for a 2x increase, 4 to match the total pixel increase + 1 to cover overlap
             temp_args = SimpleNamespace(**vars(args))  # make a backup copy of args so we can reset it after gobig
             if cl_args.cuda != '0':
                 progress_image = (f'progress{cl_args.cuda}.png')
@@ -2948,8 +2956,11 @@ try:
 
                 chunk.save(slice_image)
                 args.init_image = slice_image
+                init_image = slice_image
                 args.symmetry_loss_v = False
                 args.symmetry_loss_h = False
+                args.perlin_init = False
+                perlin_init = False
                 args.skip_steps = int(steps * .6)
                 args.side_x, args.side_y = chunk.size
                 args.fix_brightness_contrast = False
