@@ -25,7 +25,7 @@ class Window(QMainWindow):
 
         # adding image to label
         self.label.setPixmap(self.pixmap)
-        #self.label.setText('')
+        # self.label.setText('')
 
         # Optional, resize label to image size
         self.label.resize(self.pixmap.width(), self.pixmap.height())
@@ -50,7 +50,7 @@ class Window(QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
         self.worker.finished.connect(self.close)
-        #self.worker.progress.connect(self.reportProgress)
+        # self.worker.progress.connect(self.reportProgress)
         # Step 6: Start the thread
         self.thread.start()
 
