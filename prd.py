@@ -2090,11 +2090,13 @@ check_model_SHA = False  # @param{type:"boolean"}
 
 # TODO: Chance this to use any available model in the JSON file
 if diffusion_model == 'random':
-    the_models = ['256x256_diffusion_uncond',
-                  '512x512_diffusion_uncond_finetune_008100',
-                  '256x256_openai_comics_faces_by_alex_spirin_084000',
-                  'pixel_art_diffusion_hard_256',
-                  'pixel_art_diffusion_soft_256']
+    the_models = [
+        '256x256_diffusion_uncond',
+        '512x512_diffusion_uncond_finetune_008100',
+        '256x256_openai_comics_faces_by_alex_spirin_084000',
+        'pixel_art_diffusion_hard_256',
+        'pixel_art_diffusion_soft_256'
+    ]
     diffusion_model = random.choice(the_models)
     print(f'Random model selected is {diffusion_model}')
 
