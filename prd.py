@@ -54,10 +54,10 @@ Comic faces model by alex_spirin
 import sys
 import os
 
-root_path = os.getcwd()
-sys.path.append(f'{root_path}/ResizeRight')
-sys.path.append(f'{root_path}/CLIP')
-sys.path.append(f'{root_path}/guided-diffusion')
+root_path = os.getcwd() # noqa: E402
+sys.path.append(f'{root_path}/ResizeRight')  # noqa: E402
+sys.path.append(f'{root_path}/CLIP')  # noqa: E402
+sys.path.append(f'{root_path}/guided-diffusion')  # noqa: E402
 
 from cut_modules.make_cutouts import MakeCutoutsDango, MakeCutouts
 from helpers.utils import fetch
