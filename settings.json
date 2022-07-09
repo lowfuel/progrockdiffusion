@@ -91,5 +91,6 @@
     "translation_x": "0: (0)",
     "translation_y": "0: (0)",
     "video_init_path": "/content/training.mp4",
-    "extract_nth_frame": 2
+    "extract_nth_frame": 2,
+    "use_jpg": false
 }

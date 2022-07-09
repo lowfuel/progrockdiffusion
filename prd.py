@@ -227,6 +227,7 @@ symmetry_loss_v = False
 symmetry_loss_h = False
 symm_loss_scale = 2400
 symm_switch = 45
+use_jpg = False
 
 # Command Line parse
 
@@ -750,6 +751,8 @@ for setting_arg in cl_args.settings:
                 symm_loss_scale = int(dynamic_value(settings_file['symm_loss_scale']))
             if is_json_key_present(settings_file, 'symm_switch'):
                 symm_switch = int(clampval('symm_switch', 1, (settings_file['symm_switch']), steps))
+            if is_json_key_present(settings_file, 'use_jpg'):
+                use_jpg = (settings_file['use_jpg'])
 
     except Exception as e:
         print('Failed to open or parse ' + setting_arg + ' - Check formatting.')
@@ -1339,7 +1342,7 @@ def do_run(batch_num, slice_num=-1):
                 sample_image_prompt = image_prompt[s].copy()
                 prev_sample_image_prompt = sample_image_prompt.copy()
 
-            if print_sample_image_prompt:
+            if print_sample_image_prompt and len(sample_image_prompt) != 0:
                 print(f'\nImage prompt for step {s}: {sample_image_prompt}')
 
             for clip_manager in clip_managers:
@@ -1603,6 +1606,9 @@ def do_run(batch_num, slice_num=-1):
                             metadata.add_text("cut_innercut", str(cut_innercut))
                             metadata.add_text("cut_ic_pow", str(og_cut_ic_pow))
 
+                        if use_jpg:
+                            filename = filename.replace('.png','.jpg')
+                        
                         if actual_run_steps % args.display_rate == 0 or actual_run_steps == 1 or cur_t == -1:
                             if cl_args.cuda != '0':
                                 image.save(f"progress{cl_args.cuda}.png")  # note the GPU being used if it's not 0, so it won't overwrite other GPU's work
