@@ -51,7 +51,14 @@ Comic faces model by alex_spirin
 
 # @title <- View Changelog
 
-from parse_args import parse_args
+import sys
+import os
+
+root_path = os.getcwd()  # noqa: E402
+sys.path.append(f'{root_path}/ResizeRight')  # noqa: E402
+sys.path.append(f'{root_path}/CLIP')  # noqa: E402
+sys.path.append(f'{root_path}/guided-diffusion')  # noqa: E402
+
 from cut_modules.make_cutouts import MakeCutoutsDango, MakeCutouts
 from helpers.utils import fetch
 from os.path import exists
@@ -85,8 +92,6 @@ import cv2
 from functools import partial
 from dataclasses import dataclass
 import subprocess
-import sys
-import os
 from os import path
 from pickle import FALSE
 import shutil
@@ -100,7 +105,6 @@ from helpers.vram_helpers import (
 from model_managers.clip_manager import ClipManager, CLIP_NAME_MAP
 
 from attr import has
-root_path = os.getcwd()
 
 
 # Simple create paths taken with modifications from Datamosh's Batch VQGAN+CLIP notebook
@@ -217,9 +221,7 @@ if cl_args.ignoreseed:
 
 if cl_args.hidemetadata:
     add_metadata = False
-    print(
-        f'Hide metadata flag is ON, settings will not be stored in the PNG output.'
-    )
+    print(f'Hide metadata flag is ON, settings will not be stored in the PNG output.')
 
 gui = False
 if cl_args.gui:
@@ -259,16 +261,11 @@ if cl_args.gobig:
 if cl_args.geninit:
     geninit = True
     if cl_args.geninit > 0 and cl_args.geninit <= 100:
-        geninitamount = float(cl_args.geninit /
-                              100)  # turn it into a float percent
-        print(
-            f'GenInit mode enabled. A checkpoint image will be saved at {cl_args.geninit:.1%} of steps.'
-        )
+        geninitamount = float(cl_args.geninit / 100)  # turn it into a float percent
+        print(f'GenInit mode enabled. A checkpoint image will be saved at {cl_args.geninit:.1%} of steps.')
     else:
         geninitamount = 0.2
-        print(
-            f'GenInit mode enabled. Provided number was out of bounds, so using {geninitamount:.1%} of steps instead.'
-        )
+        print(f'GenInit mode enabled. Provided number was out of bounds, so using {geninitamount:.1%} of steps instead.')
 else:
     geninit = False
 
@@ -280,21 +277,15 @@ if skip_steps == 0 and ((init_image is not None) or (perlin_init == True)):
 
 if cl_args.useinit:
     if skip_steps == 0:
-        skip_steps = (
-            int(steps * 0.2)
-        )  # don't change skip_steps if the settings file specified one
+        skip_steps = (int(steps * 0.2))  # don't change skip_steps if the settings file specified one
     if path.exists(f'{cl_args.useinit}'):
         useinit = True
         init_image = cl_args.useinit
-        print(
-            f'UseInit mode is using {cl_args.useinit} and starting at {skip_steps}.'
-        )
+        print(f'UseInit mode is using {cl_args.useinit} and starting at {skip_steps}.')
     else:
         init_image = 'geninit.png'
         if path.exists(init_image):
-            print(
-                f'UseInit mode is using {init_image} and starting at {skip_steps}.'
-            )
+            print(f'UseInit mode is using {init_image} and starting at {skip_steps}.')
             useinit = True
         else:
             print('No init image found. Uneinit mode canceled.')
@@ -381,8 +372,7 @@ if clip_guidance_scale == 'auto':
     else:
         resrange = (maxcgsres - mincgsres)
         newrange = (maxcgs - mincgs)
-        clip_guidance_scale = ((
-            (res - mincgsres) * newrange) / resrange) + mincgs
+        clip_guidance_scale = (((res - mincgsres) * newrange) / resrange) + mincgs
         clip_guidance_scale = round(clip_guidance_scale)
     clip_guidance_scale = num_to_schedule(clip_guidance_scale)
     print(f'clip_guidance_scale set automatically to: {clip_guidance_scale}')
@@ -553,13 +543,9 @@ if cl_args.cpu or not torch.cuda.is_available():
     fp16_mode = False
     cores = os.cpu_count()
     if cl_args.cpu == 0:
-        print(
-            f'No thread count specified. Using detected {cores} cores for CPU mode.'
-        )
+        print(f'No thread count specified. Using detected {cores} cores for CPU mode.')
     elif cl_args.cpu > cores:
-        print(
-            f'Too many threads specified. Using detected {cores} cores for CPU mode.'
-        )
+        print(f'Too many threads specified. Using detected {cores} cores for CPU mode.')
     else:
         cores = int(cl_args.cpu)
         print(f'Using {cores} cores for CPU mode.')
@@ -568,8 +554,7 @@ else:
     DEVICE = torch.device(f'cuda:{cl_args.cuda}')
     device = DEVICE
     fp16_mode = True
-    if torch.cuda.get_device_capability(device) == (
-            8, 0):  # A100 fix thanks to Emad
+    if torch.cuda.get_device_capability(device) == (8, 0):  # A100 fix thanks to Emad
         print('Disabling CUDNN for A100 gpu', file=sys.stderr)
         torch.backends.cudnn.enabled = False
 
@@ -631,10 +616,8 @@ def perlin(width, height, scale=10, device=None):
     dots += wx * wy * (gx[:-1, :-1] * xs + gy[:-1, :-1] * ys)
     dots += (1 - wx) * wy * (-gx[1:, :-1] * (1 - xs) + gy[1:, :-1] * ys)
     dots += wx * (1 - wy) * (gx[:-1, 1:] * xs - gy[:-1, 1:] * (1 - ys))
-    dots += (1 - wx) * (1 - wy) * (-gx[1:, 1:] * (1 - xs) - gy[1:, 1:] *
-                                   (1 - ys))
-    return dots.permute(0, 2, 1, 3).contiguous().view(width * scale,
-                                                      height * scale)
+    dots += (1 - wx) * (1 - wy) * (-gx[1:, 1:] * (1 - xs) - gy[1:, 1:] * (1 - ys))
+    return dots.permute(0, 2, 1, 3).contiguous().view(width * scale, height * scale)
 
 
 def perlin_ms(octaves, width, height, grayscale, device=device):
@@ -653,10 +636,7 @@ def perlin_ms(octaves, width, height, grayscale, device=device):
     return torch.cat(out_array)
 
 
-def create_perlin_noise(octaves=[1, 1, 1, 1],
-                        width=2,
-                        height=2,
-                        grayscale=True):
+def create_perlin_noise(octaves=[1, 1, 1, 1], width=2, height=2, grayscale=True):
     out = perlin_ms(octaves, width, height, grayscale)
     if grayscale:
         out = TF.resize(size=(side_y, side_x), img=out.unsqueeze(0))
@@ -672,23 +652,15 @@ def create_perlin_noise(octaves=[1, 1, 1, 1],
 
 def regen_perlin():
     if perlin_mode == 'color':
-        init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1,
-                                   False)
-        init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4,
-                                    False)
+        init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
+        init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, False)
     elif perlin_mode == 'gray':
-        init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1,
-                                   True)
-        init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4,
-                                    True)
+        init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, True)
+        init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, True)
     else:
-        init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1,
-                                   False)
-        init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4,
-                                    True)
-
-    init = TF.to_tensor(init).add(
-        TF.to_tensor(init2)).div(2).to(device).unsqueeze(0).mul(2).sub(1)
+        init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
+        init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, True)
+    init = TF.to_tensor(init).add(TF.to_tensor(init2)).div(2).to(device).unsqueeze(0).mul(2).sub(1)
     del init2
     return init.expand(batch_size, -1, -1, -1)
 
@@ -759,32 +731,21 @@ def do_run(batch_num, slice_num=-1):
                 zoom = args.zoom_series[frame_num]
                 translation_x = args.translation_x_series[frame_num]
                 translation_y = args.translation_y_series[frame_num]
-                print(
-                    f'angle: {angle}',
-                    f'zoom: {zoom}',
-                    f'translation_x: {translation_x}',
-                    f'translation_y: {translation_y}',
-                )
+                print(f'angle: {angle}', f'zoom: {zoom}', f'translation_x: {translation_x}', f'translation_y: {translation_y}')
 
             if frame_num > 0:
                 seed = seed + 1
                 if resume_run and frame_num == start_frame:
-                    img_0 = cv2.imread(
-                        batchFolder +
-                        f"/{batch_name}({batchNum})_{start_frame-1:04}.png")
+                    img_0 = cv2.imread(batchFolder + f"/{batch_name}({batchNum})_{start_frame-1:04}.png")
                 else:
                     img_0 = cv2.imread('prevFrame.png')
                 center = (1 * img_0.shape[1] // 2, 1 * img_0.shape[0] // 2)
-                trans_mat = np.float32([[1, 0, translation_x],
-                                        [0, 1, translation_y]])
+                trans_mat = np.float32([[1, 0, translation_x], [0, 1, translation_y]])
                 rot_mat = cv2.getRotationMatrix2D(center, angle, zoom)
                 trans_mat = np.vstack([trans_mat, [0, 0, 1]])
                 rot_mat = np.vstack([rot_mat, [0, 0, 1]])
                 transformation_matrix = np.matmul(rot_mat, trans_mat)
-                img_0 = cv2.warpPerspective(img_0,
-                                            transformation_matrix,
-                                            (img_0.shape[1], img_0.shape[0]),
-                                            borderMode=cv2.BORDER_WRAP)
+                img_0 = cv2.warpPerspective(img_0, transformation_matrix, (img_0.shape[1], img_0.shape[0]), borderMode=cv2.BORDER_WRAP)
                 cv2.imwrite('prevFrameScaled.png', img_0)
                 init_image = 'prevFrameScaled.png'
                 init_scale = args.frames_scale
@@ -810,6 +771,9 @@ def do_run(batch_num, slice_num=-1):
         if animation_mode == "None":
             frame_num = batch_num
 
+        if frame_num == 0 or batch_num == 0:
+            save_settings()
+
         if args.prompts_series is not None and frame_num >= len(
                 args.prompts_series):
             frame_prompt = args.prompts_series[-1]
@@ -818,6 +782,8 @@ def do_run(batch_num, slice_num=-1):
         else:
             frame_prompt = []
 
+        # TODO: Image prompts are being fetched on every cut for every model, which is quite slow.
+        # We should get the image once and keep it in ram, reference it that way.
         if args.image_prompts_series is not None and frame_num >= len(
                 args.image_prompts_series):
             image_prompt = args.image_prompts_series[-1]
@@ -924,23 +890,16 @@ def do_run(batch_num, slice_num=-1):
 
         if args.perlin_init:
             if args.perlin_mode == 'color':
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)],
-                                           1, 1, False)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)],
-                                            4, 4, False)
+                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
+                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, False)
             elif args.perlin_mode == 'gray':
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)],
-                                           1, 1, True)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)],
-                                            4, 4, True)
+                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, True)
+                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, True)
             else:
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)],
-                                           1, 1, False)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)],
-                                            4, 4, True)
+                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
+                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, True)
             # init = TF.to_tensor(init).add(TF.to_tensor(init2)).div(2).to(device)
-            init = TF.to_tensor(init).add(TF.to_tensor(init2)).div(2).to(
-                device).unsqueeze(0).mul(2).sub(1)
+            init = TF.to_tensor(init).add(TF.to_tensor(init2)).div(2).to(device).unsqueeze(0).mul(2).sub(1)
             del init2
 
         cur_t = None
@@ -951,26 +910,16 @@ def do_run(batch_num, slice_num=-1):
                 x = x.detach().requires_grad_()
                 n = x.shape[0]
                 if use_secondary_model is True:
-                    alpha = torch.tensor(diffusion.sqrt_alphas_cumprod[cur_t],
-                                         device=device,
-                                         dtype=torch.float32)
-                    sigma = torch.tensor(
-                        diffusion.sqrt_one_minus_alphas_cumprod[cur_t],
-                        device=device,
-                        dtype=torch.float32)
+                    alpha = torch.tensor(diffusion.sqrt_alphas_cumprod[cur_t], device=device, dtype=torch.float32)
+                    sigma = torch.tensor(diffusion.sqrt_one_minus_alphas_cumprod[cur_t], device=device, dtype=torch.float32)
                     cosine_t = alpha_sigma_to_t(alpha, sigma)
                     out = secondary_model(x, cosine_t[None].repeat([n])).pred
                     fac = diffusion.sqrt_one_minus_alphas_cumprod[cur_t]
                     x_in = out * fac + x * (1 - fac)
                     x_in_grad = torch.zeros_like(x_in)
                 else:
-                    my_t = torch.ones([n], device=device,
-                                      dtype=torch.long) * cur_t
-                    out = diffusion.p_mean_variance(model,
-                                                    x,
-                                                    my_t,
-                                                    clip_denoised=False,
-                                                    model_kwargs={'y': y})
+                    my_t = torch.ones([n], device=device, dtype=torch.long) * cur_t
+                    out = diffusion.p_mean_variance(model,  x, my_t, clip_denoised=False, model_kwargs={'y': y})
                     fac = diffusion.sqrt_one_minus_alphas_cumprod[cur_t]
                     x_in = out['pred_xstart'] * fac + x * (1 - fac)
                     x_in_grad = torch.zeros_like(x_in)
@@ -990,10 +939,7 @@ def do_run(batch_num, slice_num=-1):
                             cl_args.cut_debug
                         )
                         loss_values.append(clip_losses.sum().item())  # log loss, probably shouldn't do per cutn_batch
-                        x_in_grad += torch.autograd.grad(
-                            clip_losses.sum() * args.clip_guidance_scale[1000 - t_int],
-                            x_in
-                        )[0] / args.cutn_batches[1000 - t_int]
+                        x_in_grad += torch.autograd.grad(clip_losses.sum() * args.clip_guidance_scale[1000 - t_int], x_in)[0] / args.cutn_batches[1000 - t_int]
                 tv_losses = tv_loss(x_in)
                 if use_secondary_model is True:
                     range_losses = range_loss(out)
@@ -1003,8 +949,7 @@ def do_run(batch_num, slice_num=-1):
                 logger.debug(f"tv_loss: {tv_losses.sum()}")
                 logger.debug(f"range_loss: {range_losses.sum()}")
                 logger.debug(f"sat_loss: {sat_losses.sum()}")
-                loss = tv_losses.sum() * tv_scale + range_losses.sum(
-                ) * range_scale + sat_losses.sum() * sat_scale
+                loss = tv_losses.sum() * tv_scale + range_losses.sum() * range_scale + sat_losses.sum() * sat_scale
                 if init is not None and args.init_scale:
                     init_losses = lpips_model(x_in, init)
                     loss = loss + init_losses.sum() * args.init_scale
@@ -1024,9 +969,7 @@ def do_run(batch_num, slice_num=-1):
             if args.clamp_grad and x_is_NaN == False:
                 magnitude = grad.square().mean().sqrt()
 
-                return grad * magnitude.clamp(
-                    max=args.clamp_max[1000 - t_int]
-                ) / magnitude
+                return grad * magnitude.clamp(max=args.clamp_max[1000 - t_int]) / magnitude
             return grad
 
         if args.sampling_mode == 'ddim':
@@ -1108,8 +1051,7 @@ def do_run(batch_num, slice_num=-1):
 
                 if actual_run_steps % args.display_rate == 0 or cur_t == -1 or intermediateStep == True:
                     for k, image in enumerate(sample['pred_xstart']):
-                        current_time = datetime.now().strftime(
-                            '%y%m%d-%H%M%S_%f')
+                        current_time = datetime.now().strftime('%y%m%d-%H%M%S_%f')
                         percent = math.ceil(actual_run_steps / actual_total_steps * 100)
                         if args.n_batches > 0:
                             # if intermediates are saved to the subfolder, don't append a step or percentage to the name
@@ -1129,36 +1071,24 @@ def do_run(batch_num, slice_num=-1):
                                 # Or else, if we're working with specific steps, append those
                                 else:
                                     filename = f'{args.batch_name}({args.batchNum})_{batch_num:04}-{actual_run_steps:03}.png'
-                        image = TF.to_pil_image(
-                            image.add(1).div(2).clamp(0, 1))
+                        image = TF.to_pil_image(image.add(1).div(2).clamp(0, 1))
                         # add some key metadata to the PNG if the commandline allows it
                         metadata = PngInfo()
                         if add_metadata == True:
-                            metadata.add_text("prompt",
-                                              str(text_prompts))
+                            metadata.add_text("prompt", str(text_prompts))
                             metadata.add_text("seed", str(seed))
                             metadata.add_text("steps", str(steps))
-                            metadata.add_text("init_image",
-                                              str(init_image_OriginalPath))
-                            metadata.add_text("skip_steps",
-                                              str(skip_steps))
-                            metadata.add_text("clip_guidance_scale",
-                                              str(clip_guidance_scale))
-                            metadata.add_text("tv_scale",
-                                              str(tv_scale))
-                            metadata.add_text("range_scale",
-                                              str(range_scale))
-                            metadata.add_text("sat_scale",
-                                              str(sat_scale))
+                            metadata.add_text("init_image", str(init_image_OriginalPath))
+                            metadata.add_text("skip_steps", str(skip_steps))
+                            metadata.add_text("clip_guidance_scale", str(clip_guidance_scale))
+                            metadata.add_text("tv_scale", str(tv_scale))
+                            metadata.add_text("range_scale", str(range_scale))
+                            metadata.add_text("sat_scale", str(sat_scale))
                             metadata.add_text("eta", str(eta))
-                            metadata.add_text("clamp_max",
-                                              str(clamp_max))
-                            metadata.add_text("cut_overview",
-                                              str(cut_overview))
-                            metadata.add_text("cut_innercut",
-                                              str(cut_innercut))
-                            metadata.add_text("cut_ic_pow",
-                                              str(og_cut_ic_pow))
+                            metadata.add_text("clamp_max", str(clamp_max))
+                            metadata.add_text("cut_overview", str(cut_overview))
+                            metadata.add_text("cut_innercut", str(cut_innercut))
+                            metadata.add_text("cut_ic_pow", str(og_cut_ic_pow))
 
                         if actual_run_steps % args.display_rate == 0 or actual_run_steps == 1 or cur_t == -1:
                             if cl_args.cuda != '0':
@@ -1168,37 +1098,28 @@ def do_run(batch_num, slice_num=-1):
                         if args.steps_per_checkpoint is not None:
                             if actual_run_steps % args.steps_per_checkpoint == 0 and actual_run_steps > 0:
                                 if args.intermediates_in_subfolder is True:
-                                    image.save(
-                                        f'{partialFolder}/{filename}')
+                                    image.save(f'{partialFolder}/{filename}')
                                 else:
-                                    image.save(
-                                        f'{batchFolder}/{filename}')
+                                    image.save(f'{batchFolder}/{filename}')
                         else:
                             if actual_run_steps in args.intermediate_saves:
                                 if args.intermediates_in_subfolder is True:
-                                    image.save(
-                                        f'{partialFolder}/{filename}')
+                                    image.save(f'{partialFolder}/{filename}')
                                 else:
-                                    image.save(
-                                        f'{batchFolder}/{filename}')
+                                    image.save(f'{batchFolder}/{filename}')
                                 if geninit is True:
                                     image.save('geninit.png')
                                     raise KeyboardInterrupt
 
                         if cur_t == -1:
-                            if frame_num == 0 or batch_num == 0:
-                                save_settings()
                             if args.animation_mode != "None":
                                 image.save('prevFrame.png')
                             if args.sharpen_preset and animation_mode == "None":
                                 imgToSharpen = image
                                 if args.keep_unsharp is True:
-                                    image.save(
-                                        f'{unsharpenFolder}/{filename}'
-                                    )
+                                    image.save(f'{unsharpenFolder}/{filename}')
                             else:
-                                image.save(f'{batchFolder}/{filename}',
-                                           pnginfo=metadata)
+                                image.save(f'{batchFolder}/{filename}', pnginfo=metadata)
                                 if cl_args.esrgan:
                                     print('Resizing with ESRGAN')
                                     try:
@@ -1206,9 +1127,10 @@ def do_run(batch_num, slice_num=-1):
                                         if "cuda" in str(device):
                                             with torch.cuda.device(device):
                                                 torch.cuda.empty_cache()
-                                        subprocess.run([
-                                            'realesrgan-ncnn-vulkan', '-i', f'{batchFolder}/{filename}', '-o', f'{batchFolder}/ESRGAN-{filename}'
-                                        ], stdout=subprocess.PIPE).stdout.decode('utf-8')
+                                        subprocess.run(
+                                            ['realesrgan-ncnn-vulkan', '-i', f'{batchFolder}/{filename}', '-o', f'{batchFolder}/ESRGAN-{filename}'],
+                                            stdout=subprocess.PIPE
+                                        ).stdout.decode('utf-8')
                                     except Exception as e:
                                         print('ESRGAN resize failed. Make sure realesrgan-ncnn-vulkan is in your path (or in this directory)')
                                         print(e)
@@ -1238,44 +1160,33 @@ def do_run(batch_num, slice_num=-1):
                 s = steps - cur_t
 
                 # BRIGHTNESS and CONTRAST automatic correction
-                if (s % adjustment_interval == 0) and (s < (steps * .6)) and (fix_brightness_contrast == True):
-                    if (high_brightness_adjust
-                            and s > high_brightness_start
-                            and brightness > high_brightness_threshold):
+                if (s % adjustment_interval == 0) and (s < (steps * .3)) and (fix_brightness_contrast == True):
+                    if (high_brightness_adjust and s > high_brightness_start and brightness > high_brightness_threshold):
                         progressBar.write(f"High brightness corrected at step {s}")
                         filter = ImageEnhance.Brightness(image)
-                        image = filter.enhance(
-                            high_brightness_adjust_amount)
-                        init = TF.to_tensor(image).to(device).unsqueeze(
-                            0).mul(2).sub(1)
+                        image = filter.enhance(high_brightness_adjust_amount)
+                        init = TF.to_tensor(image).to(device).unsqueeze(0).mul(2).sub(1)
                         break
 
-                    if (low_brightness_adjust and s > low_brightness_start
-                            and brightness < low_brightness_threshold):
+                    if (low_brightness_adjust and s > low_brightness_start and brightness < low_brightness_threshold):
                         progressBar.write(f"Low brightness corrected at step {s}")
                         filter = ImageEnhance.Brightness(image)
-                        image = filter.enhance(
-                            low_brightness_adjust_amount)
-                        init = TF.to_tensor(image).to(device).unsqueeze(
-                            0).mul(2).sub(1)
+                        image = filter.enhance(low_brightness_adjust_amount)
+                        init = TF.to_tensor(image).to(device).unsqueeze(0).mul(2).sub(1)
                         break
 
-                    if (high_contrast_adjust and s > high_contrast_start
-                            and contrast > high_contrast_threshold):
+                    if (high_contrast_adjust and s > high_contrast_start and contrast > high_contrast_threshold):
                         progressBar.write(f"High contrast corrected at step {s}")
                         filter = ImageEnhance.Contrast(image)
                         image = filter.enhance(high_contrast_adjust_amount)
-                        init = TF.to_tensor(image).to(device).unsqueeze(
-                            0).mul(2).sub(1)
+                        init = TF.to_tensor(image).to(device).unsqueeze(0).mul(2).sub(1)
                         break
 
-                    if (low_contrast_adjust and s > low_contrast_start
-                            and contrast < low_contrast_threshold):
+                    if (low_contrast_adjust and s > low_contrast_start and contrast < low_contrast_threshold):
                         progressBar.write(f"Low contrast corrected at step {s}")
                         filter = ImageEnhance.Contrast(image)
                         image = filter.enhance(low_contrast_adjust_amount)
-                        init = TF.to_tensor(image).to(device).unsqueeze(
-                            0).mul(2).sub(1)
+                        init = TF.to_tensor(image).to(device).unsqueeze(0).mul(2).sub(1)
                         break
 
                 if (cur_t == -1):
@@ -1376,9 +1287,7 @@ def save_settings():
         'sloss_scale': symm_loss_scale,
         'symm_switch': symm_switch,
     }
-    with open(f"{batchFolder}/{batch_name}_{batchNum}_settings.json",
-              "w+",
-              encoding="utf-8") as f:  # save settings
+    with open(f"{batchFolder}/{batch_name}_{batchNum}_settings.json",  "w+", encoding="utf-8") as f:  # save settings
         json.dump(setting_list, f, ensure_ascii=False, indent=4)
 
 
@@ -1410,10 +1319,7 @@ class DiffusionOutput:
 
 class ConvBlock(nn.Sequential):
     def __init__(self, c_in, c_out):
-        super().__init__(
-            nn.Conv2d(c_in, c_out, 3, padding=1),
-            nn.ReLU(inplace=True),
-        )
+        super().__init__(nn.Conv2d(c_in, c_out, 3, padding=1),  nn.ReLU(inplace=True))
 
 
 class SkipBlock(nn.Module):
@@ -1430,8 +1336,7 @@ class FourierFeatures(nn.Module):
     def __init__(self, in_features, out_features, std=1.):
         super().__init__()
         assert out_features % 2 == 0
-        self.weight = nn.Parameter(
-            torch.randn([out_features // 2, in_features]) * std)
+        self.weight = nn.Parameter(torch.randn([out_features // 2, in_features]) * std)
 
     def forward(self, input):
         f = 2 * math.pi * input @ self.weight.T
@@ -1481,11 +1386,9 @@ class SecondaryDiffusionImageNet(nn.Module):
         )
 
     def forward(self, input, t):
-        timestep_embed = expand_to_planes(self.timestep_embed(t[:, None]),
-                                          input.shape)
+        timestep_embed = expand_to_planes(self.timestep_embed(t[:, None]), input.shape)
         v = self.net(torch.cat([input, timestep_embed], dim=1))
-        alphas, sigmas = map(partial(append_dims, n=v.ndim),
-                             t_to_alpha_sigma(t))
+        alphas, sigmas = map(partial(append_dims, n=v.ndim), t_to_alpha_sigma(t))
         pred = input * alphas - v * sigmas
         eps = input * sigmas + v * alphas
         return DiffusionOutput(v, pred, eps)
@@ -1499,9 +1402,7 @@ class SecondaryDiffusionImageNet2(nn.Module):
 
         self.timestep_embed = FourierFeatures(1, 16)
         self.down = nn.AvgPool2d(2)
-        self.up = nn.Upsample(scale_factor=2,
-                              mode='bilinear',
-                              align_corners=False)
+        self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
 
         self.net = nn.Sequential(
             ConvBlock(3 + 16, cs[0]),
@@ -1551,11 +1452,9 @@ class SecondaryDiffusionImageNet2(nn.Module):
         )
 
     def forward(self, input, t):
-        timestep_embed = expand_to_planes(self.timestep_embed(t[:, None]),
-                                          input.shape)
+        timestep_embed = expand_to_planes(self.timestep_embed(t[:, None]), input.shape)
         v = self.net(torch.cat([input, timestep_embed], dim=1))
-        alphas, sigmas = map(partial(append_dims, n=v.ndim),
-                             t_to_alpha_sigma(t))
+        alphas, sigmas = map(partial(append_dims, n=v.ndim),  t_to_alpha_sigma(t))
         pred = input * alphas - v * sigmas
         eps = input * sigmas + v * alphas
         return DiffusionOutput(v, pred, eps)
@@ -1569,11 +1468,13 @@ check_model_SHA = False  # @param{type:"boolean"}
 
 # TODO: Chance this to use any available model in the JSON file
 if diffusion_model == 'random':
-    the_models = ['256x256_diffusion_uncond',
-                  '512x512_diffusion_uncond_finetune_008100',
-                  '256x256_openai_comics_faces_by_alex_spirin_084000',
-                  'pixel_art_diffusion_hard_256',
-                  'pixel_art_diffusion_soft_256']
+    the_models = [
+        '256x256_diffusion_uncond',
+        '512x512_diffusion_uncond_finetune_008100',
+        '256x256_openai_comics_faces_by_alex_spirin_084000',
+        'pixel_art_diffusion_hard_256',
+        'pixel_art_diffusion_soft_256'
+    ]
     diffusion_model = random.choice(the_models)
     print(f'Random model selected is {diffusion_model}')
 
@@ -1723,9 +1624,7 @@ model_default = model_config['image_size']
 def load_secondary_model():
     with track_model_vram(device, "secondary model"):
         secondary_model = SecondaryDiffusionImageNet2()
-        secondary_model.load_state_dict(
-            torch.load(f'{model_path}/secondary_model_imagenet_2.pth',
-                       map_location='cpu'))
+        secondary_model.load_state_dict(torch.load(f'{model_path}/secondary_model_imagenet_2.pth', map_location='cpu'))
         secondary_model.eval().requires_grad_(False).to(device)
     return secondary_model
 
@@ -1733,9 +1632,7 @@ def load_secondary_model():
 def load_clip_model(model_name: Text):
     print(f'-- {model_name}')
     with track_model_vram(device, model_name):
-        loaded_model = clip.load(model_name,
-                                 jit=False,
-                                 device=device)[0].eval().requires_grad_(False)
+        loaded_model = clip.load(model_name,  jit=False, device=device)[0].eval().requires_grad_(False)
     return loaded_model
 
 
@@ -1760,11 +1657,7 @@ model_load_name_map = {
 
 
 clip_managers = [
-    ClipManager(
-        name=model_name,
-        cut_count_multiplier=eval(model_name),
-        device=device
-    )
+    ClipManager(name=model_name, cut_count_multiplier=eval(model_name), device=device)
     for model_name in CLIP_NAME_MAP.keys() if eval(model_name)
 ]
 
@@ -1775,9 +1668,7 @@ clip_model_weights = [eval(model_name) for model_name in model_load_name_map.key
 side_x = (width_height[0] // 64) * 64
 side_y = (width_height[1] // 64) * 64
 if side_x != width_height[0] or side_y != width_height[1]:
-    print(
-        f'Changing output size to {side_x}x{side_y}. Dimensions must by multiples of 64.'
-    )
+    print(f'Changing output size to {side_x}x{side_y}. Dimensions must by multiples of 64.')
 
 estimate_vram_requirements(
     side_x=side_x,
@@ -1954,13 +1845,10 @@ def get_inbetweens(key_frames, integer=False):
     if interp_method == 'Quadratic' and len(key_frames.items()) <= 2:
         interp_method = 'Linear'
 
-    key_frame_series[0] = key_frame_series[
-        key_frame_series.first_valid_index()]
-    key_frame_series[max_frames -
-                     1] = key_frame_series[key_frame_series.last_valid_index()]
+    key_frame_series[0] = key_frame_series[key_frame_series.first_valid_index()]
+    key_frame_series[max_frames - 1] = key_frame_series[key_frame_series.last_valid_index()]
     # key_frame_series = key_frame_series.interpolate(method=intrp_method,order=1, limit_direction='both')
-    key_frame_series = key_frame_series.interpolate(
-        method=interp_method.lower(), limit_direction='both')
+    key_frame_series = key_frame_series.interpolate(method=interp_method.lower(), limit_direction='both')
     if integer:
         return key_frame_series.astype(int)
     return key_frame_series
@@ -1996,48 +1884,56 @@ if key_frames:
     try:
         angle_series = get_inbetweens(parse_key_frames(angle))
     except RuntimeError as e:
-        print("WARNING: You have selected to use key frames, but you have not "
-              "formatted `angle` correctly for key frames.\n"
-              "Attempting to interpret `angle` as "
-              f'"0: ({angle})"\n'
-              "Please read the instructions to find out how to use key frames "
-              "correctly.\n")
+        print(
+            "WARNING: You have selected to use key frames, but you have not "
+            "formatted `angle` correctly for key frames.\n"
+            "Attempting to interpret `angle` as "
+            f'"0: ({angle})"\n'
+            "Please read the instructions to find out how to use key frames "
+            "correctly.\n"
+        )
         angle = f"0: ({angle})"
         angle_series = get_inbetweens(parse_key_frames(angle))
 
     try:
         zoom_series = get_inbetweens(parse_key_frames(zoom))
     except RuntimeError as e:
-        print("WARNING: You have selected to use key frames, but you have not "
-              "formatted `zoom` correctly for key frames.\n"
-              "Attempting to interpret `zoom` as "
-              f'"0: ({zoom})"\n'
-              "Please read the instructions to find out how to use key frames "
-              "correctly.\n")
+        print(
+            "WARNING: You have selected to use key frames, but you have not "
+            "formatted `zoom` correctly for key frames.\n"
+            "Attempting to interpret `zoom` as "
+            f'"0: ({zoom})"\n'
+            "Please read the instructions to find out how to use key frames "
+            "correctly.\n"
+        )
         zoom = f"0: ({zoom})"
         zoom_series = get_inbetweens(parse_key_frames(zoom))
 
     try:
         translation_x_series = get_inbetweens(parse_key_frames(translation_x))
     except RuntimeError as e:
-        print("WARNING: You have selected to use key frames, but you have not "
-              "formatted `translation_x` correctly for key frames.\n"
-              "Attempting to interpret `translation_x` as "
-              f'"0: ({translation_x})"\n'
-              "Please read the instructions to find out how to use key frames "
-              "correctly.\n")
+        print(
+            "WARNING: You have selected to use key frames, but you have not "
+            "formatted `translation_x` correctly for key frames.\n"
+            "Attempting to interpret `translation_x` as "
+            f'"0: ({translation_x})"\n'
+            "Please read the instructions to find out how to use key frames "
+            "correctly.\n"
+        )
         translation_x = f"0: ({translation_x})"
         translation_x_series = get_inbetweens(parse_key_frames(translation_x))
 
     try:
         translation_y_series = get_inbetweens(parse_key_frames(translation_y))
     except RuntimeError as e:
-        print("WARNING: You have selected to use key frames, but you have not "
-              "formatted `translation_y` correctly for key frames.\n"
-              "Attempting to interpret `translation_y` as "
-              f'"0: ({translation_y})"\n'
-              "Please read the instructions to find out how to use key frames "
-              "correctly.\n")
+        print(
+            "WARNING: You have selected to use key frames, but you have not "
+            "formatted `translation_y` correctly for key frames.\n"
+            "Attempting to interpret `translation_y` as "
+            f'"0: ({translation_y})"\n'
+            "Please read the instructions to find out how to use key frames "
+            "correctly.\n"
+        )
         translation_y = f"0: ({translation_y})"
         translation_y_series = get_inbetweens(parse_key_frames(translation_y))
 
@@ -2074,8 +1970,7 @@ if type(intermediate_saves) is list:
 # Save partial run at certain divisions of total steps
 if type(intermediate_saves) is not list:
     if intermediate_saves:
-        steps_per_checkpoint = math.floor(
-            (steps - skip_steps - 1) // (intermediate_saves + 1))
+        steps_per_checkpoint = math.floor((steps - skip_steps - 1) // (intermediate_saves + 1))
         steps_per_checkpoint = steps_per_checkpoint if steps_per_checkpoint > 0 else 1
         print(f'Will save every {steps_per_checkpoint} steps')
     else:
@@ -2116,18 +2011,15 @@ if resume_run:
         try:
             batchNum
         except:
-            batchNum = len(
-                glob(f"{batchFolder}/{batch_name}(*)_settings.json")) - 1
+            batchNum = len(glob(f"{batchFolder}/{batch_name}(*)_settings.json")) - 1
     else:
         batchNum = int(run_to_resume)
     if resume_from_frame == 'latest':
-        start_frame = len(
-            glob(batchFolder + f"/{batch_name}({batchNum})_*.png"))
+        start_frame = len(glob(batchFolder + f"/{batch_name}({batchNum})_*.png"))
     else:
         start_frame = int(resume_from_frame) + 1
         if retain_overwritten_frames is True:
-            existing_frames = len(
-                glob(batchFolder + f"/{batch_name}({batchNum})_*.png"))
+            existing_frames = len(glob(batchFolder + f"/{batch_name}({batchNum})_*.png"))
             frames_to_save = existing_frames - start_frame
             print(f'Moving {frames_to_save} frames to the Retained folder')
             move_files(start_frame, existing_frames, batchFolder, retainFolder)
@@ -2264,8 +2156,7 @@ if smooth_schedules == True:
 
 if cl_args.gobiginit == None:
     model, diffusion = create_model_and_diffusion(**model_config)
-    model.load_state_dict(
-        torch.load(f'{model_path}/{diffusion_model.path}', map_location='cpu'))
+    model.load_state_dict(torch.load(f'{model_path}/{diffusion_model.path}', map_location='cpu'))
     model.requires_grad_(False).eval()
     for name, param in model.named_parameters():
         if 'qkv' in name or 'norm' in name or 'proj' in name:
@@ -2373,7 +2264,10 @@ try:
         if cl_args.gobiginit is None:
             do_run(batch_image)
         if letsgobig:
-            slices_todo = (gobig_scale * gobig_scale) + 1  # we want 5 total slices for a 2x increase, 4 to match the total pixel increase + 1 to cover overlap
+            if cl_args.gobig_slices:
+                slices_todo = cl_args.gobig_slices
+            else:
+                slices_todo = (gobig_scale * gobig_scale) + 1  # we want 5 total slices for a 2x increase, 4 to match the total pixel increase + 1 to cover overlap
             temp_args = SimpleNamespace(**vars(args))  # make a backup copy of args so we can reset it after gobig
             if cl_args.cuda != '0':
                 progress_image = (f'progress{cl_args.cuda}.png')
@@ -2415,10 +2309,8 @@ try:
                 seed = seed + 1
                 args.seed = seed
                 # Reset underlying systems for another run
-
                 model, diffusion = create_model_and_diffusion(**model_config)
-                model.load_state_dict(
-                    torch.load(f'{model_path}/{diffusion_model.path}', map_location='cpu'))
+                model.load_state_dict(torch.load(f'{model_path}/{diffusion_model.path}', map_location='cpu'))
                 model.requires_grad_(False).eval().to(device)
                 for name, param in model.named_parameters():
                     if 'qkv' in name or 'norm' in name or 'proj' in name:
@@ -2429,11 +2321,13 @@ try:
                 if "cuda" in str(device):
                     with torch.cuda.device(device):
                         torch.cuda.empty_cache()
-
                 chunk.save(slice_image)
                 args.init_image = slice_image
+                init_image = slice_image
                 args.symmetry_loss_v = False
                 args.symmetry_loss_h = False
+                args.perlin_init = False
+                perlin_init = False
                 args.skip_steps = int(steps * .6)
                 args.side_x, args.side_y = chunk.size
                 args.fix_brightness_contrast = False
@@ -2533,10 +2427,12 @@ if skip_video_for_run_all == False:
         '-pix_fmt', 'yuv420p', '-crf', '17', '-preset', 'very ', filepath
     ]
 
-    process = subprocess.Popen(cmd,
-                               cwd=f'{batchFolder}',
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        cmd,
+        cwd=f'{batchFolder}',
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
     stdout, stderr = process.communicate()
     if process.returncode != 0:
         print(stderr)

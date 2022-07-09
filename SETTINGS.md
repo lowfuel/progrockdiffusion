@@ -32,7 +32,7 @@ Note that a few of the settings can be randomly chosen -- see the section below 
 | **randomize_class** | true | Controls whether the imagenet class is randomly changed each iteration
 | **clip_denoised** | false | Determines whether CLIP discriminates a noisy or denoised image
 | **clamp_grad** | true | Experimental: Using adaptive clip grad in the cond_fn
-| **clamp_max** | "auto" | Lower values (0.01) can help keep colors muted. Higher values (0.25) allow for more vibrancy. However it is affected by steps, so "auto" will try to calculate a good value. Scheduled value supported.
+| **clamp_max** | "auto" | Lower values (0.01) can help keep colors muted. Higher values (0.3) allow for more vibrancy. However it is affected by steps, so "auto" will try to calculate a good value. Scheduled value supported.
 | **fuzzy_prompt** | false | Controls whether to add multiple noisy prompts to the prompt losses
 | **rand_mag** | 0.05 | Controls how far it can stray from your prompt - not used unless either fuzzy_prompt is true, or an init image is used
 | **eta** | "auto" | Has to do with how much the generator can stray from your prompt. Affected by steps, so "auto" will calculate a good value.
@@ -156,3 +156,38 @@ The following settings can be set to "random" (with the quotes), which will tell
 **eta**
 **cut_ic_pow**
 **diffusion_model** (note: it might select one you don't have enough VRAM for...)
+
+## Dynamic settings
+In addition to text prompts, certain other settings can be provided as a dynamic selection set from which the code will randomly choose a value.
+For example:
+```
+    "eta": "<0.2|0.5|0.75|0.99>"
+```
+would pick one of those values for eta. Note you have to put the values in quotes when using this feature. 
+Currently these values support dynamic mode:
+
+**tv_scale**
+**range_scale**
+**sat_scale**
+**skip_steps**
+**eta**
+**steps**
+**ViTB32** note: for these clip models, use numeric values instead of true / false. 1.0 is fully on, 0.0 is off, 0.5 means half on, etc.
+**ViTB16**
+**ViTL14**
+**ViTL14_336**
+**RN101**
+**RN50**
+**RN50x4**
+**RN50x16**
+**RN50x64**
+**symm_loss_scale**
+**cut_overview**
+**cut_innercut**
+**cut_ic_pow** note: only when using a schedule-style setting
+**clip_guiance_scale** note: only when using a schedule-style setting
+**clamp_max** note: only when using a schedule-style setting
+**cutn_batches** note: only when using a schedule-style setting
+
+A scheduled setting is like this: ```"[5]*1000"```. See cut_overview and cut_innercut for examples.
+The first number there is the value to use, 5. It's saying to use 5 for all 1000 diffusion steps. 
