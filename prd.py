@@ -51,6 +51,13 @@ Comic faces model by alex_spirin
 
 # @title <- View Changelog
 
+# Uncomment the below line if you're getting an error about OMP: Error #15.
+# os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
+
+sys.path.append(f'{root_path}/ResizeRight')  # noqa: E402
+sys.path.append(f'{root_path}/CLIP')  # noqa: E402
+sys.path.append(f'{root_path}/guided-diffusion')  # noqa: E402
+
 from cut_modules.make_cutouts import MakeCutoutsDango, MakeCutouts
 from helpers.utils import fetch
 from os.path import exists
@@ -129,13 +136,6 @@ if sys.platform == 'win32':
     import ssl
     ssl._create_default_https_context = ssl._create_unverified_context
     python_example = "python"
-
-# Uncomment the below line if you're getting an error about OMP: Error #15.
-# os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
-
-sys.path.append(f'{root_path}/ResizeRight')
-sys.path.append(f'{root_path}/CLIP')
-sys.path.append(f'{root_path}/guided-diffusion')
 
 
 # Setting default values for everything, which can then be overridden by settings files.
