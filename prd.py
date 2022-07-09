@@ -51,6 +51,14 @@ Comic faces model by alex_spirin
 
 # @title <- View Changelog
 
+import sys
+import os
+
+root_path = os.getcwd()
+sys.path.append(f'{root_path}/ResizeRight')
+sys.path.append(f'{root_path}/CLIP')
+sys.path.append(f'{root_path}/guided-diffusion')
+
 from cut_modules.make_cutouts import MakeCutoutsDango, MakeCutouts
 from helpers.utils import fetch
 from os.path import exists
@@ -84,8 +92,6 @@ import cv2
 from functools import partial
 from dataclasses import dataclass
 import subprocess
-import sys
-import os
 from os import path
 from pickle import FALSE
 import shutil
@@ -99,7 +105,6 @@ from helpers.vram_helpers import (
 from model_managers.clip_manager import ClipManager, CLIP_NAME_MAP
 
 from attr import has
-root_path = os.getcwd()
 
 
 # Simple create paths taken with modifications from Datamosh's Batch VQGAN+CLIP notebook
@@ -132,10 +137,6 @@ if sys.platform == 'win32':
 
 # Uncomment the below line if you're getting an error about OMP: Error #15.
 # os.environ['KMP_DUPLICATE_LIB_OK']='TRUE'
-
-sys.path.append(f'{root_path}/ResizeRight')
-sys.path.append(f'{root_path}/CLIP')
-sys.path.append(f'{root_path}/guided-diffusion')
 
 
 # Setting default values for everything, which can then be overridden by settings files.
