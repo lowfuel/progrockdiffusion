@@ -1606,8 +1606,10 @@ def do_run(batch_num, slice_num=-1):
                             metadata.add_text("cut_innercut", str(cut_innercut))
                             metadata.add_text("cut_ic_pow", str(og_cut_ic_pow))
 
+                        output_quality = 100
                         if use_jpg:
                             filename = filename.replace('.png','.jpg')
+                            output_quality = 95
                         
                         if actual_run_steps % args.display_rate == 0 or actual_run_steps == 1 or cur_t == -1:
                             if cl_args.cuda != '0':
@@ -1617,15 +1619,15 @@ def do_run(batch_num, slice_num=-1):
                         if args.steps_per_checkpoint is not None:
                             if actual_run_steps % args.steps_per_checkpoint == 0 and actual_run_steps > 0:
                                 if args.intermediates_in_subfolder is True:
-                                    image.save(f'{partialFolder}/{filename}')
+                                    image.save(f'{partialFolder}/{filename}', quality = output_quality)
                                 else:
-                                    image.save(f'{batchFolder}/{filename}')
+                                    image.save(f'{batchFolder}/{filename}', quality = output_quality)
                         else:
                             if actual_run_steps in args.intermediate_saves:
                                 if args.intermediates_in_subfolder is True:
-                                    image.save(f'{partialFolder}/{filename}')
+                                    image.save(f'{partialFolder}/{filename}', quality = output_quality)
                                 else:
-                                    image.save(f'{batchFolder}/{filename}')
+                                    image.save(f'{batchFolder}/{filename}', quality = output_quality)
                                 if geninit is True:
                                     image.save('geninit.png')
                                     raise KeyboardInterrupt
@@ -1636,9 +1638,9 @@ def do_run(batch_num, slice_num=-1):
                             if args.sharpen_preset != "Off" and animation_mode == "None":
                                 imgToSharpen = image
                                 if args.keep_unsharp is True:
-                                    image.save(f'{unsharpenFolder}/{filename}')
+                                    image.save(f'{unsharpenFolder}/{filename}', quality = output_quality)
                             else:
-                                image.save(f'{batchFolder}/{filename}', pnginfo=metadata)
+                                image.save(f'{batchFolder}/{filename}', pnginfo=metadata, quality = output_quality)
                                 if cl_args.esrgan:
                                     print('Resizing with ESRGAN')
                                     try:
