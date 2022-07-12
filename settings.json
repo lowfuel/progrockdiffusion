@@ -74,6 +74,7 @@
     "low_brightness_adjust": true,
     "gobig_orientation": "vertical",
     "gobig_scale": 2,
+    "gobig_skip_ratio": 0.6,
     "keep_unsharp": false,
     "symmetry_loss_v": false,
     "symmetry_loss_h": false,

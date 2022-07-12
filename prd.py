@@ -223,11 +223,13 @@ keep_unsharp = False  # @param{type: 'boolean'}
 animation_mode = "None"  # "Video Input", "2D"
 gobig_orientation = "vertical"
 gobig_scale = 2
+gobig_skip_ratio = 0.6
 symmetry_loss_v = False
 symmetry_loss_h = False
 symm_loss_scale = 2400
 symm_switch = 45
 use_jpg = False
+render_mask = None
 
 # Command Line parse
 
@@ -270,8 +272,11 @@ def parse_args():
     To increase resolution 2x by splitting the final image and re-rendering detail in the sections, use:
      {python_example} prd.py --gobig
 
-    To increase resolution 2x on an existing output, make sure to supply proper settings, then use:
+    To increase resolution 2x on an existing output, make sure to supply proper settings, and use:
      {python_example} prd.py --gobig --gobiginit "some_directory/image.png"
+
+    Advanced gobiginit technique - supply a mask image as well (white = render, black = don't):
+     {python_example} prd.py --gobig --gobiginit "some_directory/image.png" --gobigmask "some_directory/image.png"
 
     If you already upscaled your gobiginit image, you can skip the resizing process. Provide the scaling factor used:
      {python_example} prd.py --gobig --gobiginit "some_directory/image.png" --gobiginit_scaled 2
@@ -390,6 +395,13 @@ def parse_args():
         action='store',
         required=False,
         help='An image to use to kick off GO BIG mode, skipping the initial render.'
+    )
+
+    my_parser.add_argument(
+        '--gobigmask',
+        action='store',
+        required=False,
+        help='An image mask for your gobig render, telling the system where to draw/not draw.'
     )
 
     my_parser.add_argument(
@@ -740,6 +752,8 @@ for setting_arg in cl_args.settings:
                 gobig_orientation = (settings_file['gobig_orientation'])
             if is_json_key_present(settings_file, 'gobig_scale'):
                 gobig_scale = int(settings_file['gobig_scale'])
+            if is_json_key_present(settings_file, 'gobig_skip_ratio'):
+                gobig_skip_ratio = (settings_file['gobig_skip_ratio'])
             if is_json_key_present(settings_file, 'symmetry_loss'):
                 symmetry_loss_v = (settings_file['symmetry_loss'])
                 print("symmetry_loss was depracated, please use symmetry_loss_v in the future")
@@ -753,6 +767,8 @@ for setting_arg in cl_args.settings:
                 symm_switch = int(clampval('symm_switch', 1, (settings_file['symm_switch']), steps))
             if is_json_key_present(settings_file, 'use_jpg'):
                 use_jpg = (settings_file['use_jpg'])
+            if is_json_key_present(settings_file, 'render_mask'):
+                render_mask = (settings_file['render_mask'])
 
     except Exception as e:
         print('Failed to open or parse ' + setting_arg + ' - Check formatting.')
@@ -810,6 +826,8 @@ if cl_args.gobig:
         width_height[0] = side_x
         width_height[1] = side_y
         temp_image.close
+        if cl_args.gobigmask:
+            render_mask = cl_args.gobigmask # might need to do the same checks here as above for init, but for now let's give the user a little credit.
     else:
         cl_args.gobiginit = None
     if cl_args.gobiginit_scaled != False:
@@ -1404,6 +1422,12 @@ def do_run(batch_num, slice_num=-1):
             init = init.resize((args.side_x, args.side_y), get_resampling_mode())
             init = TF.to_tensor(init).to(device).unsqueeze(0).mul(2).sub(1)
 
+        rmask = None
+        if render_mask is not None:
+            rmask = Image.open(fetch(render_mask)).convert('RGB')
+            rmask = rmask.resize((args.side_x, args.side_y), get_resampling_mode())
+            rmask = TF.to_tensor(rmask).to(device).unsqueeze(0)
+
         if args.perlin_init:
             if args.perlin_mode == 'color':
                 init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
@@ -1455,7 +1479,13 @@ def do_run(batch_num, slice_num=-1):
                             cl_args.cut_debug
                         )
                         loss_values.append(clip_losses.sum().item())  # log loss, probably shouldn't do per cutn_batch
-                        x_in_grad += torch.autograd.grad(clip_losses.sum() * args.clip_guidance_scale[1000 - t_int], x_in)[0] / args.cutn_batches[1000 - t_int]
+                        #factor in render_mask
+                        prompt_grad = torch.autograd.grad(clip_losses.sum() * args.clip_guidance_scale[1000 - t_int], x_in)[0] / args.cutn_batches[1000 - t_int]
+                        if rmask != None:
+                            x_in_grad += rmask.mul(prompt_grad)
+                        else:
+                            x_in_grad += prompt_grad
+
                 tv_losses = tv_loss(x_in)
                 if use_secondary_model is True:
                     range_losses = range_loss(out)
@@ -1992,7 +2022,7 @@ if diffusion_model == 'random':
     the_models = [
         '256x256_diffusion_uncond',
         '512x512_diffusion_uncond_finetune_008100',
-        '256x256_openai_comics_faces_by_alex_spirin_084000',
+        '256x256_openai_comics_faces_by_alex_spirin',
         'pixel_art_diffusion_hard_256',
         'pixel_art_diffusion_soft_256'
     ]
@@ -2662,6 +2692,7 @@ args = {
     'sloss_scale': symm_loss_scale,
     'symm_switch': symm_switch,
     'smooth_schedules': smooth_schedules,
+    'render_mask': render_mask
 }
 
 args = SimpleNamespace(**args)
@@ -2720,13 +2751,6 @@ def mergeimgs(source, slices):
     if gobig_vertical == True:
         slice_width, slice_height = slices[0].size
         slice_width -= 64  # remove overlap
-        print(f'slice_width for merge is {slice_width}')
-        #slice_width = int(width / slices_todo)
-        # slice_width = 64 * math.floor(slice_width / 64) #round slice width down to the nearest 64
-        #remainder = width - (slice_width * slices_todo)
-        # while remainder > 0:
-        #    slices_todo += 1
-        #    remainder = remainder - slice_width
         paste_x = 0
         for slice in slices:
             source.alpha_composite(slice, (paste_x, 0))
@@ -2734,23 +2758,24 @@ def mergeimgs(source, slices):
     return source
 
 # Slices an image into the configured number of chunks. Overlap is currently 64px but should become dynamic
-
-
-def slice(source):
+# Also slices render_masks to match
+def slice(source, rmask):
     global slices_todo
     width, height = source.size
     overlap = 64  # int(height / slices_todo / 4)
+    slices = []
+    slice_rmasks = []
+    x = 0
+    y = 0
+    i = 0
     if gobig_horizontal == True:
         slice_height = int(height / slices_todo)
         slice_height = 64 * math.floor(slice_height / 64)  # round slice height down to the nearest 64
         slice_height += overlap
-        i = 0
-        slices = []
-        x = 0
-        y = 0
         bottomy = slice_height
         while i < slices_todo:
             slices.append(source.crop((x, y, width, bottomy)))
+            slice_rmasks.append(rmask.crop((x, y, width, bottomy)))
             y += slice_height - overlap
             bottomy = y + slice_height
             i += 1
@@ -2762,17 +2787,15 @@ def slice(source):
             slices_todo += 1
             remainder = remainder - slice_width
         slice_width += overlap
-        i = 0
-        slices = []
-        x = 0
-        y = 0
         edgex = slice_width
         while i < slices_todo:
             slices.append(source.crop((x, y, edgex, height)))
+            slice_rmasks.append(rmask.crop((x, y, edgex, height)))
             x += slice_width - overlap
             edgex = x + slice_width
             i += 1
-    return (slices)
+    slices_with_rmasks = zip(slices, slice_rmasks)
+    return slices_with_rmasks
 
 
 # FINALLY DO THE RUN
@@ -2792,41 +2815,47 @@ try:
             temp_args = SimpleNamespace(**vars(args))  # make a backup copy of args so we can reset it after gobig
             if cl_args.cuda != '0':
                 progress_image = (f'progress{cl_args.cuda}.png')
-                og_progress_image = (f'og_progress{cl_args.cuda}.png')
             else:
                 progress_image = 'progress.png'
-                og_progress_image = 'og_progress.png'
-            # preserve initial progress image so next image in batch works
-            if os.path.exists(progress_image):
-                shutil.copy(progress_image, og_progress_image)
             # grab the init image and make it our progress image
             if cl_args.gobiginit is not None:
-                shutil.copy(init_image, progress_image)
-            # Resize initial progress.png to new size
+                shutil.copy(init_image, progress_image)                
+            # Setup some filenames
             if cl_args.cuda != '0':  # handle if a different GPU is in use
-
                 slice_image = (f'slice{cl_args.cuda}.png')
+                slice_rmask = (f'slice_rmask{cl_args.cuda}.png')
                 final_output_image = (f'{batchFolder}/{batch_name}_go_big_{cl_args.cuda}_{batchNum}_{batch_image}.png')
             else:
 
                 slice_image = 'slice.png'
+                slice_rmask = 'slice_rmask.png'
                 final_output_image = (f'{batchFolder}/{batch_name}_go_big_{batchNum}_{batch_image}.png')
-            input_image = Image.open(progress_image).convert('RGBA')
-            # input_image.save(original_output_image)
+
+            # To keep things simple (hah), we'll create a fully white render_mask to use in the case that there's no provided render_mask
+            # that way there's going to be a render_mask no matter what, and we don't have to keep checking for it
+            # And just to keep everyone on their toes, a render_mask is is for telling do_run where to render/not render, while a mask is for gobig to blend slices
+            if render_mask is None:
+                source_render_mask = Image.new('RGBA', (args.side_x, args.side_y), color = (255,255,255))
+            else:
+                source_render_mask = Image.open(render_mask).convert('RGBA')
+
+            # Resize init if needed, as well as any render mask. For now we assume the render mask matches the size of the init.
             if cl_args.gobiginit_scaled == False:
+                input_image = Image.open(progress_image).convert('RGBA')
                 reside_x = side_x * gobig_scale
                 reside_y = side_y * gobig_scale
                 source_image = input_image.resize((reside_x, reside_y), get_resampling_mode())
+                input_image.close()
+                source_render_mask = source_render_mask.resize((reside_x, reside_y), get_resampling_mode())
             else:
                 source_image = Image.open(progress_image).convert('RGBA')
-
-            input_image.close()
+            
             # Slice source_image into overlapping slices
-            slices = slice(source_image)
-            # Run PRD again for each slice, with init image paramaters, etc.
+            slices = slice(source_image, source_render_mask)
+            # Run PRD again for each slice, with proper init image paramaters, etc.
             i = 1  # just to number the slices as they save
             betterslices = []
-            for chunk in slices:
+            for chunk, chunk_rmask in slices:
                 seed = seed + 1
                 args.seed = seed
                 # Reset underlying systems for another run
@@ -2842,14 +2871,18 @@ try:
                 if "cuda" in str(device):
                     with torch.cuda.device(device):
                         torch.cuda.empty_cache()
+                # Some original values need to be adjusted for go_big to work properly
                 chunk.save(slice_image)
+                chunk_rmask.save(slice_rmask)
                 args.init_image = slice_image
                 init_image = slice_image
+                args.render_mask = slice_rmask
+                render_mask = slice_rmask
                 args.symmetry_loss_v = False
                 args.symmetry_loss_h = False
                 args.perlin_init = False
                 perlin_init = False
-                args.skip_steps = int(steps * .6)
+                args.skip_steps = int(steps * gobig_skip_ratio)
                 args.side_x, args.side_y = chunk.size
                 args.fix_brightness_contrast = False
                 do_run(batch_image, i)
@@ -2895,7 +2928,6 @@ try:
             print(f'\n\nGO BIG is complete!\n\n ***** NOTE *****\nYour output is saved as {final_output_image}!')
             # set everything back for the next image in the batch
             args = temp_args
-            shutil.copy(og_progress_image, progress_image)
         gc.collect()
         if "cuda" in str(device):
             with torch.cuda.device(device):
