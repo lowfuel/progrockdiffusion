@@ -2208,7 +2208,13 @@ model_load_name_map = {
 
 
 clip_managers = [
-    ClipManager(name=model_name, cut_count_multiplier=eval(model_name), device=device)
+    ClipManager(
+        name=model_name,
+        cut_count_multiplier=eval(model_name),
+        device=device,
+        use_cut_heatmap=True,
+        pad_inner_cuts=True
+    )
     for model_name in CLIP_NAME_MAP.keys() if eval(model_name)
 ]
 

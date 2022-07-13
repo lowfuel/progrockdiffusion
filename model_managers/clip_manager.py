@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numexpr
 import torch
@@ -9,6 +10,7 @@ from torchvision.transforms import functional as transforms_functional
 from torch.nn import functional as F
 
 from helpers.vram_helpers import track_model_vram
+from cut_modules.make_cutouts import CutHeatmap, save_cut_image, save_inner_cut_bounds_image
 from helpers.utils import fetch
 
 logger = logging.getLogger(__name__)
@@ -39,13 +41,25 @@ def spherical_dist_loss(x, y):
 
 class ClipManager:
 
-    def __init__(self, name: str, cut_count_multiplier: int, device):
+    def __init__(
+            self,
+            name: str,
+            cut_count_multiplier: int,
+            device,
+            use_cut_heatmap=False,
+            pad_inner_cuts=False,
+            cutout_debug_image_dir='cutout_debug_images'
+    ):
         self.name = name
         self.model = None
         self.cut_count_multiplier = cut_count_multiplier
         self.prompt_weights = None
         self.prompt_embeds = None
         self.device = device
+        self.cut_heatmap = None
+        self.use_cut_heatmap = use_cut_heatmap
+        self.pad_inner_cuts = pad_inner_cuts
+        self.cutout_debug_image_dir=cutout_debug_image_dir
 
     @staticmethod
     def parse_prompt(prompt, vars={}):
@@ -64,16 +78,6 @@ class ClipManager:
                 jit=False,
                 device=self.device
             )[0].eval().requires_grad_(False)
-
-    def draw_inner_cuts(self, input, rectangle_points):
-        image = transforms_functional.to_pil_image(input.clamp(0, 1).squeeze(0))
-        draw = ImageDraw.Draw(image)
-        for points in rectangle_points:
-            logger.debug(f"{self.name} cut dimensions: {points[3] - points[1]} x {points[2] - points[0]}")
-            draw.rectangle(points)
-        image.save(
-            f"inner_{self.name}_cuts.jpg", quality=99
-        )
 
     def embed_text_prompts(
         self,
@@ -121,7 +125,6 @@ class ClipManager:
         cutouts = cut_model(
             self.model.visual.input_resolution,
             cutn,
-
         )
         prompt_embeds = []
         prompt_weights = []
@@ -153,8 +156,21 @@ class ClipManager:
         prompt_weights /= prompt_weights.sum().abs()
         return prompt_embeds, prompt_weights
 
+    def save_debug_images(self, cut_input, innercut_bound_list, cutouts):
+        if not os.path.exists(self.cutout_debug_image_dir):
+            os.makedirs(self.cutout_debug_image_dir)
+        if self.use_cut_heatmap:
+            self.cut_heatmap.save_image(os.path.join(self.cutout_debug_image_dir, f"heatmap_{self.name}.jpg"))
+        save_inner_cut_bounds_image(
+            cut_input,
+            innercut_bound_list,
+            os.path.join(self.cutout_debug_image_dir, f"inner_cut_bounds_{self.name}.jpg")
+        )
+        for i, cutout in enumerate(cutouts):
+            save_cut_image(cutout, os.path.join(self.cutout_debug_image_dir, f"cutout_{self.name}_{i}.jpg"))
+
     def get_cut_batch_losses(
-        self,
+            self,
         x_in,
         n,
         cut_overview,
@@ -163,7 +179,7 @@ class ClipManager:
         innercut_gray_prob,
         t_int,
         cut_fn,
-        cutout_debug=False
+        cutout_debug=False,
     ):
         try:
             input_resolution = self.model.visual.input_resolution
@@ -177,6 +193,9 @@ class ClipManager:
             i_cuts = 2  # we have to do something otherwise we crash
         logger.debug(f'Doing {o_cuts} overview cuts and {i_cuts} inner for {self.name}')
 
+        if not self.cut_heatmap and self.use_cut_heatmap:
+            self.cut_heatmap = CutHeatmap(side_x=x_in.shape[-1], side_y=x_in.shape[-2])
+
         # Then do the cuts
         cuts = cut_fn(
             input_resolution,
@@ -187,13 +206,11 @@ class ClipManager:
         )
 
         cut_input = x_in.add(1).div(2)
-        cutouts, innercut_bound_list = cuts(cut_input)
+        cutouts, innercut_bound_list = cuts(cut_input, heatmap=self.cut_heatmap, pad_inner=self.pad_inner_cuts)
         if cutout_debug:
-            self.draw_inner_cuts(cut_input, innercut_bound_list)
-            for i, cutout in enumerate(cutouts):
-                transforms_functional.to_pil_image(cutout.clamp(0, 1).squeeze(0)).save(
-                    f"cutout_{self.name}_{i}.jpg", quality=99
-                )
+            self.save_debug_images(cut_input, innercut_bound_list, cutouts)
+        if self.use_cut_heatmap:
+            self.cut_heatmap.decay()
         clip_in = clip_img_normalize(
             cutouts
         )
