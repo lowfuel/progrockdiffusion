@@ -170,7 +170,7 @@ class ClipManager:
             save_cut_image(cutout, os.path.join(self.cutout_debug_image_dir, f"cutout_{self.name}_{i}.jpg"))
 
     def get_cut_batch_losses(
-            self,
+        self,
         x_in,
         n,
         cut_overview,
