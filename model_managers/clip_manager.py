@@ -73,6 +73,7 @@ class ClipManager:
 
     def load(self):
         with track_model_vram(self.device, f"Loading {self.name}"):
+            print(f'--{self.name}')
             self.model = clip.load(
                 CLIP_NAME_MAP[self.name],
                 jit=False,
