@@ -2024,7 +2024,12 @@ if diffusion_model == 'random':
         '512x512_diffusion_uncond_finetune_008100',
         '256x256_openai_comics_faces_by_alex_spirin',
         'pixel_art_diffusion_hard_256',
-        'pixel_art_diffusion_soft_256'
+        'pixel_art_diffusion_soft_256',
+        'portrait_generator_v001',
+        'pixelartdiffusion4k',
+        'watercolordiffusion',
+        'watercolordiffusion_2',
+        'PulpSciFiDiffusion'
     ]
     diffusion_model = random.choice(the_models)
     print(f'Random model selected is {diffusion_model}')
@@ -2045,10 +2050,13 @@ class Diff_Model:
     learn_sigma: bool
     noise_schedule: str
     num_channels: int
-    num_head_channels: int
     num_res_blocks: int
     resblock_updown: bool
     use_scale_shift_norm: bool
+    timestep_respacing: str
+    num_head_channels: int = -1
+    num_heads: int = 1
+    use_fp16: bool = True
     slink: str = "none"
 
 
@@ -2056,6 +2064,7 @@ try:
     with open('diffusion_models.json', 'r', encoding="utf-8") as json_file:
         print(f'Loading diffusion model details from diffusion_models.json')
         user_supplied_name = diffusion_model
+        print(f'Using Diffusion Model: {user_supplied_name}')
         diffusion_models_file = json.load(json_file)
         if user_supplied_name in diffusion_models_file:
             diffusion_model = Diff_Model()
@@ -2072,10 +2081,20 @@ try:
             diffusion_model.learn_sigma = diffusion_models_file[user_supplied_name]['learn_sigma']
             diffusion_model.noise_schedule = diffusion_models_file[user_supplied_name]['noise_schedule']
             diffusion_model.num_channels = diffusion_models_file[user_supplied_name]['num_channels']
-            diffusion_model.num_head_channels = diffusion_models_file[user_supplied_name]['num_head_channels']
+            if is_json_key_present(diffusion_models_file, user_supplied_name, 'num_head_channels'):
+                diffusion_model.num_head_channels = diffusion_models_file[user_supplied_name]['num_head_channels']
+            if is_json_key_present(diffusion_models_file, user_supplied_name, 'num_heads'):
+                print(f'Setting num heads to {diffusion_models_file[user_supplied_name]["num_heads"]}')
+            diffusion_model.num_heads = diffusion_models_file[user_supplied_name]['num_heads']
             diffusion_model.num_res_blocks = diffusion_models_file[user_supplied_name]['num_res_blocks']
             diffusion_model.resblock_updown = diffusion_models_file[user_supplied_name]['resblock_updown']
             diffusion_model.use_scale_shift_norm = diffusion_models_file[user_supplied_name]['use_scale_shift_norm']
+            if is_json_key_present(diffusion_models_file, user_supplied_name, 'use_fp16'):
+                diffusion_model.use_fp16 = diffusion_models_file[user_supplied_name]['use_fp16']
+            if is_json_key_present(diffusion_models_file, user_supplied_name, 'timestep_respacing'):
+                diffusion_model.timestep_respacing = diffusion_models_file[user_supplied_name]['timestep_respacing']
+            else:
+                diffusion_model.timestep_respacing = timestep_respacing
 except Exception as e:
     print('Unable to read diffusion_models.json - check formatting')
     print(e)
@@ -2156,21 +2175,21 @@ model_config.update({
     'class_cond': diffusion_model.class_cond,
     'diffusion_steps': diffusion_steps,
     'rescale_timesteps': diffusion_model.rescale_timesteps,
-    'timestep_respacing': timestep_respacing,
+    'timestep_respacing': diffusion_model.timestep_respacing,
     'image_size': diffusion_model.image_size,
     'learn_sigma': diffusion_model.learn_sigma,
     'noise_schedule': diffusion_model.noise_schedule,
     'num_channels': diffusion_model.num_channels,
     'num_head_channels': diffusion_model.num_head_channels,
+    'num_heads': diffusion_model.num_heads,
     'num_res_blocks': diffusion_model.num_res_blocks,
     'resblock_updown': diffusion_model.resblock_updown,
     'use_checkpoint': use_checkpoint,
-    'use_fp16': fp16_mode,
+    'use_fp16': diffusion_model.use_fp16,
     'use_scale_shift_norm': diffusion_model.use_scale_shift_norm,
 })
 
 model_default = model_config['image_size']
-
 
 def load_secondary_model():
     with track_model_vram(device, "secondary model"):
@@ -2189,7 +2208,7 @@ def load_clip_model(model_name: Text):
 
 def load_lpips_model(net: str = 'vgg'):
     with track_model_vram(device, "LPIPS model"):
-        lpips_model = lpips.LPIPS(net=net).to(device)
+        lpips_model = lpips.LPIPS(net=net, verbose=False).to(device)
     return lpips_model
 
 
@@ -2237,9 +2256,7 @@ estimate_vram_requirements(
     use_secondary=use_secondary_model,
     device=device
 )
-
 lpips_model = load_lpips_model()
-
 if use_secondary_model:
     secondary_model = load_secondary_model()
 
