@@ -2243,14 +2243,7 @@ lpips_model = load_lpips_model()
 if use_secondary_model:
     secondary_model = load_secondary_model()
 
-# clip_models contains the model itself, the name of the model, and the supplied weight value
-print('\nLoading CLIP Models:')
-clip_models = [
-    (load_clip_model(model_load_name_map[model_name]), model_name, eval(model_name))
-    for model_name in clip_modelname
-]
-print('')
-
+print('\nLoading CLIP Models:\n')
 # Load the CLIP models
 for clip_manager in clip_managers:
     clip_manager.load()
