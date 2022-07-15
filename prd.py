@@ -2064,7 +2064,7 @@ try:
     with open('diffusion_models.json', 'r', encoding="utf-8") as json_file:
         print(f'Loading diffusion model details from diffusion_models.json')
         user_supplied_name = diffusion_model
-        print(f'diff model is {user_supplied_name}')
+        print(f'Using Diffusion Model: {user_supplied_name}')
         diffusion_models_file = json.load(json_file)
         if user_supplied_name in diffusion_models_file:
             diffusion_model = Diff_Model()

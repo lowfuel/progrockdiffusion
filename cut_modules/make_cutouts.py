@@ -287,7 +287,7 @@ class MakeCutoutsDango(nn.Module):
         # This way even with less than 4 overview cuts, you still get a mix of all of them
         if 0 < self.overview_cut_count <= 4:
             li = [1, 1, 2, 3, 4] # give a slight edge to the normal, full color cut
-            ri = [1, 2, 3, 4] #random.sample(li, self.overview_cut_count)
+            ri = random.sample(li, self.overview_cut_count)
             ri.sort()
             for i in range(self.overview_cut_count):
                 if ri[i] == 1:
