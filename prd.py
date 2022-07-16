@@ -58,6 +58,7 @@ root_path = os.getcwd() # noqa: E402
 sys.path.append(f'{root_path}/ResizeRight')  # noqa: E402
 sys.path.append(f'{root_path}/CLIP')  # noqa: E402
 sys.path.append(f'{root_path}/guided-diffusion')  # noqa: E402
+sys.path.append(f'{root_path}/open_clip/src')  # noqa: E402
 
 from cut_modules.make_cutouts import MakeCutoutsDango, MakeCutouts
 from helpers.utils import fetch
@@ -175,15 +176,28 @@ use_secondary_model = True
 steps = 250
 sampling_mode = "ddim"
 diffusion_steps = 1000
-ViTB32 = True
-ViTB16 = True
-ViTL14 = False
-ViTL14_336 = False
-RN101 = False
-RN50 = True
-RN50x4 = False
-RN50x16 = False
-RN50x64 = False
+ViTB32 = 1.0
+ViTB16 = 0.0
+ViTL14 = 0.0
+ViTL14_336 = 0.0
+RN101 = 0.0
+RN50 = 0.0
+RN50x4 = 0.0
+RN50x16 = 0.0
+RN50x64 = 0.0
+ViTB32_laion2b_e16 = 1.0
+ViTB32_laion400m_e31 = 0.0
+ViTB32_laion400m_32 = 0.0
+ViTB32quickgelu_laion400m_e31 = 0.0
+ViTB32quickgelu_laion400m_e32 = 0.0
+ViTB16_laion400m_e31 = 0.0
+ViTB16_laion400m_e32 = 0.0
+RN50_yffcc15m = 0.0
+RN50_cc12m = 0.0
+RN50_quickgelu_yfcc15m = 0.0
+RN50_quickgelu_cc12m = 0.0
+RN101_yfcc15m = 0.0
+RN101_quickgelu_yfcc15m = 0.0
 cut_overview = "[12]*400+[4]*600"
 cut_innercut = "[4]*400+[12]*600"
 cut_ic_pow = "[1]*500+[10]*500"
@@ -675,6 +689,32 @@ for setting_arg in cl_args.settings:
                 RN50x16 = float(dynamic_value(settings_file['RN50x16']))
             if is_json_key_present(settings_file, 'RN50x64'):
                 RN50x64 = float(dynamic_value(settings_file['RN50x64']))
+            if is_json_key_present(settings_file, 'ViTB32_laion2b_e16'):
+                ViTB32_laion2b_e16 = float(dynamic_value(settings_file['ViTB32_laion2b_e16']))
+            if is_json_key_present(settings_file, 'ViTB32_laion400m_e31'):
+                ViTB32_laion400m_e31 = float(dynamic_value(settings_file['ViTB32_laion400m_e31']))
+            if is_json_key_present(settings_file, 'ViTB32_laion400m_32'):
+                ViTB32_laion400m_32 = float(dynamic_value(settings_file['ViTB32_laion400m_32']))
+            if is_json_key_present(settings_file, 'ViTB32quickgelu_laion400m_e31'):
+                ViTB32quickgelu_laion400m_e31 = float(dynamic_value(settings_file['ViTB32quickgelu_laion400m_e31']))
+            if is_json_key_present(settings_file, 'ViTB32quickgelu_laion400m_e32'):
+                ViTB32quickgelu_laion400m_e32 = float(dynamic_value(settings_file['ViTB32quickgelu_laion400m_e32']))
+            if is_json_key_present(settings_file, 'ViTB16_laion400m_e31'):
+                ViTB16_laion400m_e31 = float(dynamic_value(settings_file['ViTB16_laion400m_e31']))
+            if is_json_key_present(settings_file, 'ViTB16_laion400m_e32'):
+                ViTB16_laion400m_e32 = float(dynamic_value(settings_file['ViTB16_laion400m_e32']))
+            if is_json_key_present(settings_file, 'RN50_yffcc15m'):
+                RN50_yffcc15m = float(dynamic_value(settings_file['RN50_yffcc15m']))
+            if is_json_key_present(settings_file, 'RN50_cc12m'):
+                RN50_cc12m = float(dynamic_value(settings_file['RN50_cc12m']))
+            if is_json_key_present(settings_file, 'RN50_quickgelu_yfcc15m'):
+                RN50_quickgelu_yfcc15m = float(dynamic_value(settings_file['RN50_quickgelu_yfcc15m']))
+            if is_json_key_present(settings_file, 'RN50_quickgelu_cc12m'):
+                RN50_quickgelu_cc12m = float(dynamic_value(settings_file['RN50_quickgelu_cc12m']))
+            if is_json_key_present(settings_file, 'RN101_yfcc15m'):
+                RN101_yfcc15m = float(dynamic_value(settings_file['RN101_yfcc15m']))
+            if is_json_key_present(settings_file, 'RN101_quickgelu_yfcc15m'):
+                RN101_quickgelu_yfcc15m = float(dynamic_value(settings_file['RN101_quickgelu_yfcc15m']))
             if is_json_key_present(settings_file, 'cut_overview'):
                 cut_overview = dynamic_value(settings_file['cut_overview'])
             if is_json_key_present(settings_file, 'cut_innercut'):
@@ -1796,6 +1836,19 @@ def save_settings():
         'RN50x4': RN50x4,
         'RN50x16': RN50x16,
         'RN50x64': RN50x64,
+        'ViTB32_laion2b_e16': ViTB32_laion2b_e16,
+        'ViTB32_laion400m_e31': ViTB32_laion400m_e31,
+        'ViTB32_laion400m_32': ViTB32_laion400m_32,
+        'ViTB32quickgelu_laion400m_e31': ViTB32quickgelu_laion400m_e31,
+        'ViTB32quickgelu_laion400m_e32': ViTB32quickgelu_laion400m_e32,
+        'ViTB16_laion400m_e31': ViTB16_laion400m_e31,
+        'ViTB16_laion400m_e32': ViTB16_laion400m_e32,
+        'RN50_yffcc15m': RN50_yffcc15m,
+        'RN50_cc12m': RN50_cc12m,
+        'RN50_quickgelu_yfcc15m': RN50_quickgelu_yfcc15m,
+        'RN50_quickgelu_cc12m': RN50_quickgelu_cc12m,
+        'RN101_yfcc15m': RN101_yfcc15m,
+        'RN101_quickgelu_yfcc15m': RN101_quickgelu_yfcc15m,
         'cut_overview': str(cut_overview),
         'cut_innercut': str(cut_innercut),
         'cut_ic_pow': og_cut_ic_pow,
@@ -2198,14 +2251,6 @@ def load_secondary_model():
         secondary_model.eval().requires_grad_(False).to(device)
     return secondary_model
 
-
-def load_clip_model(model_name: Text):
-    print(f'-- {model_name}')
-    with track_model_vram(device, model_name):
-        loaded_model = clip.load(model_name,  jit=False, device=device)[0].eval().requires_grad_(False)
-    return loaded_model
-
-
 def load_lpips_model(net: str = 'vgg'):
     with track_model_vram(device, "LPIPS model"):
         lpips_model = lpips.LPIPS(net=net, verbose=False).to(device)
@@ -2222,7 +2267,20 @@ model_load_name_map = {
     'RN50x4': 'RN50x4',
     'RN50x16': 'RN50x16',
     'RN50x64': 'RN50x64',
-    'RN101': 'RN101'
+    'RN101': 'RN101',
+    'ViTB32_laion2b_e16': 'ViTB32_laion2b_e16',
+    'ViTB32_laion400m_e31': 'ViTB32_laion400m_e31',
+    'ViTB32_laion400m_32': 'ViTB32_laion400m_32',
+    'ViTB32quickgelu_laion400m_e31': 'ViTB32quickgelu_laion400m_e31',
+    'ViTB32quickgelu_laion400m_e32': 'ViTB32quickgelu_laion400m_e32',
+    'ViTB16_laion400m_e31': 'ViTB16_laion400m_e31',
+    'ViTB16_laion400m_e32': 'ViTB16_laion400m_e32',
+    'RN50_yffcc15m': 'RN50_yffcc15m',
+    'RN50_cc12m': 'RN50_cc12m',
+    'RN50_quickgelu_yfcc15m': 'RN50_quickgelu_yfcc15m',
+    'RN50_quickgelu_cc12m': 'RN50_quickgelu_cc12m',
+    'RN101_yfcc15m': 'RN101_yfcc15m',
+    'RN101_quickgelu_yfcc15m': 'RN101_quickgelu_yfcc15m'
 }
 
 

@@ -4,9 +4,10 @@ A command line version of [Disco Diffusion](https://github.com/alembics/disco-di
 Please consider supporting my time and effort in maintaining and improving this program on my [Patreon](https://www.patreon.com/jasonmhough?fan_landing=true). Thanks!
 
 # Quick note on updating:
-A new version was released today, April 5 2022. If you are trying to update you'll need to install a few additional items:
+A new version was released today, July 16 2022. If you are trying to update you'll need to install an additional item:
+(run this in your progrockdiffusion directory)
 ```
-pip install json5 numexpr
+git clone https://github.com/mlfoundations/open_clip.git
 ```
 
 # Hardware prerequisites
@@ -107,7 +108,7 @@ cd progrockdiffusion
 ```
 git clone https://github.com/crowsonkb/guided-diffusion
 git clone https://github.com/openai/CLIP.git
-git clone https://github.com/facebookresearch/SLIP.git
+git clone https://github.com/mlfoundations/open_clip.git
 git clone https://github.com/assafshocher/ResizeRight.git
 git clone https://github.com/CompVis/latent-diffusion.git
 git clone https://github.com/CompVis/taming-transformers

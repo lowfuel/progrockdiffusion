@@ -40,15 +40,28 @@ Note that a few of the settings can be randomly chosen -- see the section below 
 | **use_secondary_model** | true | Reduces memory and improves speed, potentially at a loss of quality
 | **diffusion_steps** | 1000 | Note: The code seems to calculate this no matter what you put in, so might as well leave it
 | **sampling_mode** | "plms"  | Options are "plms" or "ddim" - plms can reach a nice image in fewer steps, but may not look as good as ddim.
-| **ViTB32** | true | Enable or disable the VitB32 CLIP model. Low memory, low accuracy
-| **ViTB16** | false | Enable or disable the VitB16 CLIP model. Med memory, high accuracy
-| **ViTL14** | true | Enable or disable the ViTL14 CLIP model. Very high memory, very high accuracy
-| **ViTL14_336** | false | Enable or disable the ViTL14_336 CLIP model. Extremely high memory, very high accuracy
-| **RN101** | false | Enable or disable the VitB32 CLIP model. Low memory, low accuracy
-| **RN50** | true | Enable or disable the VitB32 CLIP model. Med memory, med accuracy
-| **RN50x4** | false | Enable or disable the VitB32 CLIP model. High memory, high accuracy
-| **RN50x16** | false | Enable or disable the VitB32 CLIP model. Very high memory, high accuracy
-| **RN50x64** | false | Enable or disable the VitB32 CLIP model. Extremely high memory, unknown accuracy
+| **ViTB32** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **ViTB16** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **ViTL14** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **ViTL14_336** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **RN101** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **RN50** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **RN50x4** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **RN50x16** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **RN50x64** | 0.0 | Enable (1.0) or Disable (0.0) this CLIP Model. Between 0.0 and 1.0 is a weight factor
+| **ViTB32_laion2b_e16** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **ViTB32_laion400m_e31** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **ViTB32_laion400m_32** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **ViTB32quickgelu_laion400m_e31** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **ViTB32quickgelu_laion400m_e32** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **ViTB16_laion400m_e31** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **ViTB16_laion400m_e32** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **RN50_yffcc15m** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **RN50_cc12m** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **RN50_quickgelu_yfcc15m** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **RN50_quickgelu_cc12m** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **RN101_yfcc15m** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
+| **RN101_quickgelu_yfcc15m** | 0.0 | Enable (1.0) or Disable (0.0) this OpenClip Model. Between 0.0 and 1.0 is a weight factor
 | **cut_overview** | "[5]\*400+[1]\*600" | How many "big picture" passes to do. More towards the start, less later, is the general idea
 | **cut_innercut** | "[1]\*400+[5]\*600" | Conversely, how many detail passes to do. Fewer at the start, then get more detailed
 | **cut_ic_pow** | 1 | A higher number can add more detail, but may create unwanted fine lines (value range: 0.0 to 100). NOTE: Can be scheduled like cut_overview instead (in which case cut_ic_pow_final is ignored)
