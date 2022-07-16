@@ -1458,15 +1458,16 @@ def do_run(batch_num, slice_num=-1):
 
         init = None
         if init_image is not None:
-            init = Image.open(fetch(init_image)).convert('RGB')
-            init = init.resize((args.side_x, args.side_y), get_resampling_mode())
-            init = TF.to_tensor(init).to(device).unsqueeze(0).mul(2).sub(1)
+            init_img = Image.open(fetch(init_image)).convert('RGB')
+            init_img = init_img.resize((args.side_x, args.side_y), get_resampling_mode())
+            init = TF.to_tensor(init_img).to(device).unsqueeze(0).mul(2).sub(1)
+            init_img = init_img.convert('RGBA') # now that we've made our init, we add an alpha channel for later compositing
 
         rmask = None
         if render_mask is not None:
-            rmask = Image.open(fetch(render_mask)).convert('RGB')
-            rmask = rmask.resize((args.side_x, args.side_y), get_resampling_mode())
-            rmask = TF.to_tensor(rmask).to(device).unsqueeze(0)
+            rmask_img = Image.open(fetch(render_mask)).convert('L')
+            rmask_img = rmask_img.resize((args.side_x, args.side_y), get_resampling_mode())
+            rmask = TF.to_tensor(rmask_img).to(device).unsqueeze(0)
 
         if args.perlin_init:
             if args.perlin_mode == 'color':
@@ -1710,6 +1711,16 @@ def do_run(batch_num, slice_num=-1):
                                 if args.keep_unsharp is True:
                                     image.save(f'{unsharpenFolder}/{filename}', quality = output_quality)
                             else:
+                                if render_mask:
+                                    # I don't know why PILLOW has to have copies of things, but it does. 
+                                    print('\nUsing render mask to composite rendered image with init image.')
+                                    image2 = image.copy()
+                                    image2.putalpha(rmask_img)
+                                    image2.save('test.png')
+                                    image3 = image2.copy()
+                                    image3 = Image.alpha_composite(init_img, image3)
+                                    image = image3.copy()
+                                    image.save('progress.png')
                                 image.save(f'{batchFolder}/{filename}', pnginfo=metadata, quality = output_quality)
                                 if cl_args.esrgan:
                                     print('Resizing with ESRGAN')
@@ -1782,7 +1793,7 @@ def do_run(batch_num, slice_num=-1):
 
                 if (cur_t == -1):
                     break
-        progressBar.close()
+        progressBar.close()            
 
 
 def save_settings():
@@ -1808,6 +1819,7 @@ def save_settings():
         'interp_spline': interp_spline,
         # 'rotation_per_frame': rotation_per_frame,
         'init_image': init_image,
+        'render_mask': render_mask,
         'init_scale': init_scale,
         'skip_steps': skip_steps,
         # 'zoom_per_frame': zoom_per_frame,
@@ -3006,7 +3018,7 @@ try:
             final_output.save(final_output_image)
             print(f'\n\nGO BIG is complete!\n\n ***** NOTE *****\nYour output is saved as {final_output_image}!')
             # set everything back for the next image in the batch
-            args = temp_args
+            args = temp_args            
         gc.collect()
         if "cuda" in str(device):
             with torch.cuda.device(device):
