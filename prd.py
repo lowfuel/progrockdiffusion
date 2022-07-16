@@ -2824,6 +2824,10 @@ try:
         if cl_args.gobiginit is None:
             do_run(batch_image)
         if letsgobig:
+            # Clear out the heatmaps from the original image, since the size is going to change
+            for clip_manager in clip_managers:
+                clip_manager.cut_heatmap = None
+
             if cl_args.gobig_slices:
                 slices_todo = cl_args.gobig_slices
             else:
@@ -2900,6 +2904,7 @@ try:
                 perlin_init = False
                 args.skip_steps = int(steps * gobig_skip_ratio)
                 args.side_x, args.side_y = chunk.size
+                side_x, side_y = chunk.size
                 args.fix_brightness_contrast = False
                 do_run(batch_image, i)
                 print(f'Finished slice, grabbing {progress_image} and adding it to betterslices.')
