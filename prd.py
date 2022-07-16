@@ -96,7 +96,7 @@ from os import path
 from pickle import FALSE
 import shutil
 import logging
-import argparse
+
 from helpers.vram_helpers import (
     track_model_vram,
     estimate_vram_requirements,
@@ -105,9 +105,11 @@ from helpers.vram_helpers import (
 from model_managers.clip_manager import ClipManager, CLIP_NAME_MAP
 
 from attr import has
-
+from parse_args import parse_args
 
 # Simple create paths taken with modifications from Datamosh's Batch VQGAN+CLIP notebook
+
+
 def createPath(filepath):
     if path.exists(filepath) == False:
         os.makedirs(filepath)
