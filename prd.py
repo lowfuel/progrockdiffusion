@@ -2074,7 +2074,7 @@ args = {
     'batchNum': batchNum,
     'prompts_series': split_prompts(text_prompts) if text_prompts else None,
     'image_prompts_series':
-    split_prompts(image_prompts) if image_prompts else None,
+    split_prompts(settings.image_prompts) if settings.image_prompts else None,
     'seed': seed,
     'display_rate': display_rate,
     'n_batches': n_batches if animation_mode == 'None' else 1,
