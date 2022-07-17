@@ -788,8 +788,6 @@ for setting_arg in cl_args.settings:
                 keep_unsharp = (settings_file['keep_unsharp'])
             if is_json_key_present(settings_file, 'animation_mode'):
                 animation_mode = (settings_file['animation_mode'])
-            if is_json_key_present(settings_file, 'gobig_orientation'):
-                gobig_orientation = (settings_file['gobig_orientation'])
             if is_json_key_present(settings_file, 'gobig_scale'):
                 gobig_scale = int(settings_file['gobig_scale'])
             if is_json_key_present(settings_file, 'gobig_skip_ratio'):
@@ -842,14 +840,10 @@ if cl_args.gui:
     import prdgui
 
 letsgobig = False
-gobig_horizontal = False
 gobig_vertical = False
 if cl_args.gobig:
     letsgobig = True
-    if gobig_orientation == "horizontal":  # default is vertical, if the settings file says otherwise, change it
-        gobig_horizontal = True
-    else:
-        gobig_vertical = True
+    gobig_vertical = True
     if cl_args.gobiginit:
         init_image = cl_args.gobiginit
         print(f'Using {init_image} to kickstart GO BIG. Initial render will be skipped.')
@@ -1896,7 +1890,6 @@ def save_settings():
         'low_brightness_adjust': low_brightness_adjust,
         'sharpen_preset': sharpen_preset,
         'keep_unsharp': keep_unsharp,
-        'gobig_orientation': gobig_orientation,
         'gobig_scale': gobig_scale,
         'symmetry_loss_v': symmetry_loss_v,
         'symmetry_loss_h': symmetry_loss_h,
@@ -2827,13 +2820,6 @@ def mergeimgs(source, slices):
     global slices_todo
     source.convert("RGBA")
     width, height = source.size
-    if gobig_horizontal == True:
-        slice_height = int(height / slices_todo)
-        slice_height = 64 * math.floor(slice_height / 64)  # round slice height down to the nearest 64
-        paste_y = 0
-        for slice in slices:
-            source.alpha_composite(slice, (0, paste_y))
-            paste_y += slice_height
     if gobig_vertical == True:
         slice_width, slice_height = slices[0].size
         slice_width -= 64  # remove overlap
@@ -2854,17 +2840,6 @@ def slice(source, rmask):
     x = 0
     y = 0
     i = 0
-    if gobig_horizontal == True:
-        slice_height = int(height / slices_todo)
-        slice_height = 64 * math.floor(slice_height / 64)  # round slice height down to the nearest 64
-        slice_height += overlap
-        bottomy = slice_height
-        while i < slices_todo:
-            slices.append(source.crop((x, y, width, bottomy)))
-            slice_rmasks.append(rmask.crop((x, y, width, bottomy)))
-            y += slice_height - overlap
-            bottomy = y + slice_height
-            i += 1
     if gobig_vertical == True:
         slice_width = int(width / slices_todo)
         slice_width = 64 * math.floor(slice_width / 64)  # round slice width down to the nearest 64
@@ -2994,17 +2969,6 @@ try:
                         alpha_gradient.putpixel((x, 0), a)
                     else:
                         alpha_gradient.putpixel((x, 0), 255)
-                alpha = alpha_gradient.resize(betterslices[0].size, Image.Resampling.BICUBIC)
-            # For each slice, use addalpha to add an alpha mask
-            if gobig_horizontal:
-                alpha_gradient = Image.new('L', (1, args.side_y), color=0xFF)
-                a = 0
-                for x in range(args.side_y):
-                    a += 4  # add 4 to alpha at each pixel, to give us a 64 pixel overlap gradient
-                    if a < 255:
-                        alpha_gradient.putpixel((0, x), a)
-                    else:
-                        alpha_gradient.putpixel((0, x), 255)
                 alpha = alpha_gradient.resize(betterslices[0].size, Image.Resampling.BICUBIC)
             # add the generated alpha channel to a mask image
             mask = Image.new('RGBA', (args.side_x, args.side_y), color=0)
