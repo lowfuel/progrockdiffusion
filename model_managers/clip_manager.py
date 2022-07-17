@@ -69,7 +69,7 @@ class ClipManager:
         else:
             vals = prompt.rsplit(':', 1)
         vals = vals + ['', '1'][len(vals):]
-        return vals[0], float(numexpr.evaluate(vals[1], local_dict=vars))
+        return vals[0], float(numexpr.evaluate(vals[1].strip(), local_dict=vars))
 
     def load(self):
         with track_model_vram(self.device, f"Loading {self.name}"):
