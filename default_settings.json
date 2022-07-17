@@ -88,5 +88,5 @@
     "symmetry_loss_v": false,
     "symmetry_loss_h": false,
     "symm_loss_scale": 2400,
-    "symm_switch": 45,
+    "symm_switch": 45
 }

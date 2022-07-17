@@ -21,6 +21,7 @@
     "range_scale": 150,
     "sat_scale": 0,
     "cutn_batches": 8,
+    "cutn_batches_final": null,
     "init_image": null,
     "skip_steps_ratio": 0.33,
     "init_scale": 1000,
@@ -74,6 +75,7 @@
     "low_brightness_adjust": true,
     "gobig_orientation": "vertical",
     "gobig_scale": 2,
+    "gobig_skip_ratio": 0.6,
     "keep_unsharp": false,
     "symmetry_loss_v": false,
     "symmetry_loss_h": false,
@@ -91,5 +93,6 @@
     "translation_x": "0: (0)",
     "translation_y": "0: (0)",
     "video_init_path": "/content/training.mp4",
-    "extract_nth_frame": 2
+    "extract_nth_frame": 2,
+    "use_jpg": false
 }

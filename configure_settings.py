@@ -7,7 +7,7 @@ def clamp(min_val, val, max_val):
     return max(min_val, min(val, max_val))
 
 
-def configure_eta(settings, eta='auto'):
+def configure_eta(settings, eta):
     default = eta
     if eta == 'auto':
         steps = settings.steps
@@ -30,21 +30,23 @@ def configure_eta(settings, eta='auto'):
     return eta
 
 
-def configure_height_width(settings, height_width=[512, 512]):
-    if isinstance(height_width, str):
-        height_width = ast.literal_eval(height_width)
-    # TODO: handle non-list/tuples
-    height = (height_width[0] // 64) * 64
-    width = (height_width[1] // 64) * 64
-    if [height, width] != height_width:
+def configure_width_height(settings, width_height):
+    # TODO: throw if width or height are incorrect (not existing, negative, too small, etc)
+    if(width_height is None):
+        width_height = [settings.width, settings.height]
+    if isinstance(width_height, str):
+        width_height = ast.literal_eval(width_height)
+    print(width_height)
+    height = (width_height[0] // 64) * 64
+    width = (width_height[1] // 64) * 64
+    if [height, width] != width_height:
         print(
             f'Changing output size to {width}x{height}. Dimensions must by multiples of 64.'
         )
     return (height, width)
-    # TODO: configure_device (try GPU if in settings, default to cpu if unable)
 
 
-def configure_prompt(settings, full_prompt="💩"):
+def configure_prompt(settings, full_prompt):
     def parse_prompt(prompt):
         split_prompt = prompt.split(':')
         try:
@@ -55,9 +57,9 @@ def configure_prompt(settings, full_prompt="💩"):
     return [parse_prompt(p) for p in full_prompt.split('|')]
 
 
-def configure_clip_guidance_scale(settings, clip_guidance_scale='auto'):
+def configure_clip_guidance_scale(settings, clip_guidance_scale):
     if clip_guidance_scale == 'auto':
-        w, h = configure_height_width(settings, settings.height_width)
+        w, h = configure_width_height(settings, settings.width_height)
         res = w*h  # total pixels
         maxcgsres = 2000000
         mincgsres = 250000
@@ -78,7 +80,7 @@ def configure_clip_guidance_scale(settings, clip_guidance_scale='auto'):
     return clamp(1500, clip_guidance_scale, 100000)
 
 
-def configure_clamp_max(settings, clamp_max='auto'):
+def configure_clamp_max(settings, clamp_max):
     if clamp_max == 'auto':
         clamp_max = (settings.steps/1000)**2
     clamp_max = max(.01, min(clamp_max, 1))
@@ -123,7 +125,7 @@ def configure_width_height(settings, width_height):
 
 configurers = {
     "eta": configure_eta,  # TODO: Talk to progrock about this
-    "height_width": configure_height_width,
+    "width_height": configure_width_height,
     "prompts": configure_prompt,
     "clip_guidance_scale": configure_clip_guidance_scale,
     "clamp_max": configure_clamp_max,  # TODO: Talk to progrock about this
@@ -131,14 +133,14 @@ configurers = {
     "ic_schedule": configure_schedule,
     "ic_gray": configure_schedule,
     "ic_bias": configure_schedule,
-    "tv_scale": lambda v: clamp(0, v, 1000),
-    "range_scale": lambda v: clamp(0, v, 1000),
-    "sat_scale": lambda v: clamp(0, v, 20000),
-    "clamp_max": lambda v: clamp(0.001, v, 0.3),
-    "rand_mag": lambda v: clamp(0.0, v, 0.999),
-    "eta": lambda v: clamp(0.0, v, 0.999),
-    "cut_ic_pow": lambda v: clamp(0.0, v, 100),
-    "cut_ic_pow_final": lambda v: clamp(0.5, v, 100),
+    "tv_scale": lambda _, v: clamp(0, v, 1000),
+    "range_scale": lambda _, v: clamp(0, v, 1000),
+    "sat_scale": lambda _, v: clamp(0, v, 20000),
+    "clamp_max": lambda _, v: clamp(0.001, v, 0.3),
+    "rand_mag": lambda _, v: clamp(0.0, v, 0.999),
+    "eta": lambda _, v: clamp(0.0, v, 0.999),
+    "cut_ic_pow": lambda _, v: clamp(0.0, v, 100),
+    "cut_ic_pow_final": lambda _, v: clamp(0.5, v, 100),
     "symmetry_loss_v": configure_symmetry_loss_v,
     "symm_switch": configure_symm_switch,
     "width_height": configure_width_height
@@ -148,7 +150,7 @@ configurers = {
 def get_configured_settings(settings, configurers=configurers):
     for k, v in settings.items():
         if isinstance(v, str) and v.isnumeric():
-            v = int(v) if v.isdigit() else float(v)
-        if configurers[k]:
+            v = float(v)
+        if k in configurers:
             settings[k] = configurers[k](settings, v)
     return settings

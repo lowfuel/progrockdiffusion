@@ -56,6 +56,8 @@ Note that a few of the settings can be randomly chosen -- see the section below 
 | **cut_icgray_p** | "[0.2]\*400+[0]\*600" | Percent of cuts to do as grayscale, which evidently can help add detail
 | **smooth_schedules** | false | When true, will smooth the transitions within cut_overview and cut_innercut schedules
 | **gobig_orientation** | "vertical" | Which direction to do slices for gobig mode. Options are vertical or horizontal, but vertical is best in most cases
+| **gobig_scale** | 2 | Amount to scale original image by (2 is recommended, 3 or 4 is getting nuts)
+| **gobig_skip_ratio** | 0.6 | Amount of steps to skip (60% is usually good - too high and there's not enough time for gobig to work -- too low and gobig will add unwanted detail)
 | **animation_mode** | None | Animation mode. Options are "None", "2D", "Video Input" - CAPS MATTER
 | **key_frames** | true | Animation stuff...
 | **angle** | "0:(0)"| Animation stuff...
@@ -70,6 +72,7 @@ Note that a few of the settings can be randomly chosen -- see the section below 
 | **symm_loss_scale** |  20000 | helps control how closely each side should match during symmetry. Definitely play with this number to get the results you're looking for.
 | **symm_switch** | 45 | what step to stop doing symmetry mode
 | **stop_early** | 0 | stop processing your image at a certain step
+| **render_mask** | null | A black and white image that tells the renderer where to draw (white) and not draw (black).
 
 ## Text Prompts
 There are a handful of techniques available within Text Prompts. Here are a few examples:
