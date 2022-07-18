@@ -36,7 +36,7 @@ Note that a few of the settings can be randomly chosen -- see the section below 
 | **fuzzy_prompt** | false | Controls whether to add multiple noisy prompts to the prompt losses
 | **rand_mag** | 0.05 | Controls how far it can stray from your prompt - not used unless either fuzzy_prompt is true, or an init image is used
 | **eta** | "auto" | Has to do with how much the generator can stray from your prompt. Affected by steps, so "auto" will calculate a good value.
-| **diffusion_model** | "512x512_diffusion_uncond_finetune_008100", "256x256_openai_comics_faces_by_alex_spirin_084000", "256x256_diffusion_uncond", "pixel_art_diffusion_hard_256", "pixel_art_diffusion_soft_256"
+| **diffusion_model** | "512x512_diffusion_uncond_finetune_008100", "256x256_openai_comics_faces_by_alex_spirin_084000", "256x256_diffusion_uncond", "pixel_art_diffusion_hard_256", "pixel_art_diffusion_soft_256", "pixelartdiffusion4k", "portrait_generator_v001", "watercolordiffusion", "watercolordiffusion_2", "PulpSciFiDiffusion"
 | **use_secondary_model** | true | Reduces memory and improves speed, potentially at a loss of quality
 | **diffusion_steps** | 1000 | Note: The code seems to calculate this no matter what you put in, so might as well leave it
 | **sampling_mode** | "plms"  | Options are "plms" or "ddim" - plms can reach a nice image in fewer steps, but may not look as good as ddim.
@@ -172,6 +172,14 @@ The following settings can be set to "random" (with the quotes), which will tell
 **eta**
 **cut_ic_pow**
 **diffusion_model** (note: it might select one you don't have enough VRAM for...)
+
+In addition, init_image can be randomized. Create a folder inside "init_images" and place as many images inside it was you want.
+Let's say for example we have a folder called "space". 
+Now, in your settings file, set your init_image to:
+```
+    "init_image": "_space_"
+```
+A random image from init_images/space will be chosen. Be sure to set your skip_steps as well.
 
 ## Dynamic settings
 In addition to text prompts, certain other settings can be provided as a dynamic selection set from which the code will randomly choose a value.
