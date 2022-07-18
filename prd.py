@@ -1218,7 +1218,7 @@ def create_perlin_noise(octaves=[1, 1, 1, 1], width=2, height=2, grayscale=True)
     return out
 
 
-def regen_perlin():
+def gen_perlin():
     if perlin_mode == 'color':
         init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
         init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, False)
@@ -1463,19 +1463,8 @@ def do_run(batch_num, slice_num=-1):
             rmask_img = rmask_img.resize((args.side_x, args.side_y), get_resampling_mode())
             rmask = TF.to_tensor(rmask_img).to(device).unsqueeze(0)
 
-        if args.perlin_init:
-            if args.perlin_mode == 'color':
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, False)
-            elif args.perlin_mode == 'gray':
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, True)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, True)
-            else:
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, True)
-            # init = TF.to_tensor(init).add(TF.to_tensor(init2)).div(2).to(device)
-            init = TF.to_tensor(init).add(TF.to_tensor(init2)).div(2).to(device).unsqueeze(0).mul(2).sub(1)
-            del init2
+        if (args.perlin_init == True) and (init_image == None):
+            init = gen_perlin()
 
         cur_t = None
 
@@ -1572,8 +1561,8 @@ def do_run(batch_num, slice_num=-1):
         total_steps = cur_t
         logger.debug(f'cur_t at start of image is {cur_t} and diffusion.num_timesteps is {diffusion.num_timesteps}')
 
-        if perlin_init:
-            init = regen_perlin()
+        if (args.perlin_init == True) and (init_image == None):
+            init = gen_perlin()
         else:
             init = starting_init  # make sure we return to a baseline for each image in a batch
 
@@ -2112,9 +2101,9 @@ class Diff_Model:
     resblock_updown: bool
     use_scale_shift_norm: bool
     timestep_respacing: str
+    use_fp16: bool
     num_head_channels: int = -1
     num_heads: int = 1
-    use_fp16: bool = True
     slink: str = "none"
 
 
@@ -2141,14 +2130,15 @@ try:
             diffusion_model.num_channels = diffusion_models_file[user_supplied_name]['num_channels']
             if is_json_key_present(diffusion_models_file, user_supplied_name, 'num_head_channels'):
                 diffusion_model.num_head_channels = diffusion_models_file[user_supplied_name]['num_head_channels']
-            if is_json_key_present(diffusion_models_file, user_supplied_name, 'num_heads'):
-                print(f'Setting num heads to {diffusion_models_file[user_supplied_name]["num_heads"]}')
             diffusion_model.num_heads = diffusion_models_file[user_supplied_name]['num_heads']
             diffusion_model.num_res_blocks = diffusion_models_file[user_supplied_name]['num_res_blocks']
             diffusion_model.resblock_updown = diffusion_models_file[user_supplied_name]['resblock_updown']
             diffusion_model.use_scale_shift_norm = diffusion_models_file[user_supplied_name]['use_scale_shift_norm']
             if is_json_key_present(diffusion_models_file, user_supplied_name, 'use_fp16'):
-                diffusion_model.use_fp16 = diffusion_models_file[user_supplied_name]['use_fp16']
+                if fp16_mode == True:
+                    diffusion_model.use_fp16 = diffusion_models_file[user_supplied_name]['use_fp16']
+                else:
+                    diffusion_model.use_fp16 = False # Can't use fp16 when in CPU mode
             if is_json_key_present(diffusion_models_file, user_supplied_name, 'timestep_respacing'):
                 diffusion_model.timestep_respacing = diffusion_models_file[user_supplied_name]['timestep_respacing']
             else:
