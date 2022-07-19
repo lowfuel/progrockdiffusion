@@ -58,6 +58,7 @@ root_path = os.getcwd() # noqa: E402
 sys.path.append(f'{root_path}/ResizeRight')  # noqa: E402
 sys.path.append(f'{root_path}/CLIP')  # noqa: E402
 sys.path.append(f'{root_path}/guided-diffusion')  # noqa: E402
+sys.path.append(f'{root_path}/open_clip/src')  # noqa: E402
 
 from cut_modules.make_cutouts import MakeCutoutsDango, MakeCutouts
 from helpers.utils import fetch
@@ -175,15 +176,28 @@ use_secondary_model = True
 steps = 250
 sampling_mode = "ddim"
 diffusion_steps = 1000
-ViTB32 = True
-ViTB16 = True
-ViTL14 = False
-ViTL14_336 = False
-RN101 = False
-RN50 = True
-RN50x4 = False
-RN50x16 = False
-RN50x64 = False
+ViTB32 = 1.0
+ViTB16 = 0.0
+ViTL14 = 0.0
+ViTL14_336 = 0.0
+RN101 = 0.0
+RN50 = 0.0
+RN50x4 = 0.0
+RN50x16 = 0.0
+RN50x64 = 0.0
+ViTB32_laion2b_e16 = 1.0
+ViTB32_laion400m_e31 = 0.0
+ViTB32_laion400m_32 = 0.0
+ViTB32quickgelu_laion400m_e31 = 0.0
+ViTB32quickgelu_laion400m_e32 = 0.0
+ViTB16_laion400m_e31 = 0.0
+ViTB16_laion400m_e32 = 0.0
+RN50_yffcc15m = 0.0
+RN50_cc12m = 0.0
+RN50_quickgelu_yfcc15m = 0.0
+RN50_quickgelu_cc12m = 0.0
+RN101_yfcc15m = 0.0
+RN101_quickgelu_yfcc15m = 0.0
 cut_overview = "[12]*400+[4]*600"
 cut_innercut = "[4]*400+[12]*600"
 cut_ic_pow = "[1]*500+[10]*500"
@@ -675,6 +689,32 @@ for setting_arg in cl_args.settings:
                 RN50x16 = float(dynamic_value(settings_file['RN50x16']))
             if is_json_key_present(settings_file, 'RN50x64'):
                 RN50x64 = float(dynamic_value(settings_file['RN50x64']))
+            if is_json_key_present(settings_file, 'ViTB32_laion2b_e16'):
+                ViTB32_laion2b_e16 = float(dynamic_value(settings_file['ViTB32_laion2b_e16']))
+            if is_json_key_present(settings_file, 'ViTB32_laion400m_e31'):
+                ViTB32_laion400m_e31 = float(dynamic_value(settings_file['ViTB32_laion400m_e31']))
+            if is_json_key_present(settings_file, 'ViTB32_laion400m_32'):
+                ViTB32_laion400m_32 = float(dynamic_value(settings_file['ViTB32_laion400m_32']))
+            if is_json_key_present(settings_file, 'ViTB32quickgelu_laion400m_e31'):
+                ViTB32quickgelu_laion400m_e31 = float(dynamic_value(settings_file['ViTB32quickgelu_laion400m_e31']))
+            if is_json_key_present(settings_file, 'ViTB32quickgelu_laion400m_e32'):
+                ViTB32quickgelu_laion400m_e32 = float(dynamic_value(settings_file['ViTB32quickgelu_laion400m_e32']))
+            if is_json_key_present(settings_file, 'ViTB16_laion400m_e31'):
+                ViTB16_laion400m_e31 = float(dynamic_value(settings_file['ViTB16_laion400m_e31']))
+            if is_json_key_present(settings_file, 'ViTB16_laion400m_e32'):
+                ViTB16_laion400m_e32 = float(dynamic_value(settings_file['ViTB16_laion400m_e32']))
+            if is_json_key_present(settings_file, 'RN50_yffcc15m'):
+                RN50_yffcc15m = float(dynamic_value(settings_file['RN50_yffcc15m']))
+            if is_json_key_present(settings_file, 'RN50_cc12m'):
+                RN50_cc12m = float(dynamic_value(settings_file['RN50_cc12m']))
+            if is_json_key_present(settings_file, 'RN50_quickgelu_yfcc15m'):
+                RN50_quickgelu_yfcc15m = float(dynamic_value(settings_file['RN50_quickgelu_yfcc15m']))
+            if is_json_key_present(settings_file, 'RN50_quickgelu_cc12m'):
+                RN50_quickgelu_cc12m = float(dynamic_value(settings_file['RN50_quickgelu_cc12m']))
+            if is_json_key_present(settings_file, 'RN101_yfcc15m'):
+                RN101_yfcc15m = float(dynamic_value(settings_file['RN101_yfcc15m']))
+            if is_json_key_present(settings_file, 'RN101_quickgelu_yfcc15m'):
+                RN101_quickgelu_yfcc15m = float(dynamic_value(settings_file['RN101_quickgelu_yfcc15m']))
             if is_json_key_present(settings_file, 'cut_overview'):
                 cut_overview = dynamic_value(settings_file['cut_overview'])
             if is_json_key_present(settings_file, 'cut_innercut'):
@@ -748,8 +788,6 @@ for setting_arg in cl_args.settings:
                 keep_unsharp = (settings_file['keep_unsharp'])
             if is_json_key_present(settings_file, 'animation_mode'):
                 animation_mode = (settings_file['animation_mode'])
-            if is_json_key_present(settings_file, 'gobig_orientation'):
-                gobig_orientation = (settings_file['gobig_orientation'])
             if is_json_key_present(settings_file, 'gobig_scale'):
                 gobig_scale = int(settings_file['gobig_scale'])
             if is_json_key_present(settings_file, 'gobig_skip_ratio'):
@@ -802,14 +840,10 @@ if cl_args.gui:
     import prdgui
 
 letsgobig = False
-gobig_horizontal = False
 gobig_vertical = False
 if cl_args.gobig:
     letsgobig = True
-    if gobig_orientation == "horizontal":  # default is vertical, if the settings file says otherwise, change it
-        gobig_horizontal = True
-    else:
-        gobig_vertical = True
+    gobig_vertical = True
     if cl_args.gobiginit:
         init_image = cl_args.gobiginit
         print(f'Using {init_image} to kickstart GO BIG. Initial render will be skipped.')
@@ -1184,7 +1218,7 @@ def create_perlin_noise(octaves=[1, 1, 1, 1], width=2, height=2, grayscale=True)
     return out
 
 
-def regen_perlin():
+def gen_perlin():
     if perlin_mode == 'color':
         init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
         init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, False)
@@ -1418,29 +1452,19 @@ def do_run(batch_num, slice_num=-1):
 
         init = None
         if init_image is not None:
-            init = Image.open(fetch(init_image)).convert('RGB')
-            init = init.resize((args.side_x, args.side_y), get_resampling_mode())
-            init = TF.to_tensor(init).to(device).unsqueeze(0).mul(2).sub(1)
+            init_img = Image.open(fetch(init_image)).convert('RGB')
+            init_img = init_img.resize((args.side_x, args.side_y), get_resampling_mode())
+            init = TF.to_tensor(init_img).to(device).unsqueeze(0).mul(2).sub(1)
+            init_img = init_img.convert('RGBA') # now that we've made our init, we add an alpha channel for later compositing
 
         rmask = None
         if render_mask is not None:
-            rmask = Image.open(fetch(render_mask)).convert('RGB')
-            rmask = rmask.resize((args.side_x, args.side_y), get_resampling_mode())
-            rmask = TF.to_tensor(rmask).to(device).unsqueeze(0)
+            rmask_img = Image.open(fetch(render_mask)).convert('L')
+            rmask_img = rmask_img.resize((args.side_x, args.side_y), get_resampling_mode())
+            rmask = TF.to_tensor(rmask_img).to(device).unsqueeze(0)
 
-        if args.perlin_init:
-            if args.perlin_mode == 'color':
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, False)
-            elif args.perlin_mode == 'gray':
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, True)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, True)
-            else:
-                init = create_perlin_noise([1.5**-i * 0.5 for i in range(12)], 1, 1, False)
-                init2 = create_perlin_noise([1.5**-i * 0.5 for i in range(8)], 4, 4, True)
-            # init = TF.to_tensor(init).add(TF.to_tensor(init2)).div(2).to(device)
-            init = TF.to_tensor(init).add(TF.to_tensor(init2)).div(2).to(device).unsqueeze(0).mul(2).sub(1)
-            del init2
+        if (args.perlin_init == True) and (init_image == None):
+            init = gen_perlin()
 
         cur_t = None
 
@@ -1537,8 +1561,8 @@ def do_run(batch_num, slice_num=-1):
         total_steps = cur_t
         logger.debug(f'cur_t at start of image is {cur_t} and diffusion.num_timesteps is {diffusion.num_timesteps}')
 
-        if perlin_init:
-            init = regen_perlin()
+        if (args.perlin_init == True) and (init_image == None):
+            init = gen_perlin()
         else:
             init = starting_init  # make sure we return to a baseline for each image in a batch
 
@@ -1670,6 +1694,16 @@ def do_run(batch_num, slice_num=-1):
                                 if args.keep_unsharp is True:
                                     image.save(f'{unsharpenFolder}/{filename}', quality = output_quality)
                             else:
+                                if render_mask:
+                                    # I don't know why PILLOW has to have copies of things, but it does. 
+                                    print('\nUsing render mask to composite rendered image with init image.')
+                                    image2 = image.copy()
+                                    image2.putalpha(rmask_img)
+                                    image2.save('test.png')
+                                    image3 = image2.copy()
+                                    image3 = Image.alpha_composite(init_img, image3)
+                                    image = image3.copy()
+                                    image.save('progress.png')
                                 image.save(f'{batchFolder}/{filename}', pnginfo=metadata, quality = output_quality)
                                 if cl_args.esrgan:
                                     print('Resizing with ESRGAN')
@@ -1742,7 +1776,7 @@ def do_run(batch_num, slice_num=-1):
 
                 if (cur_t == -1):
                     break
-        progressBar.close()
+        progressBar.close()            
 
 
 def save_settings():
@@ -1768,6 +1802,7 @@ def save_settings():
         'interp_spline': interp_spline,
         # 'rotation_per_frame': rotation_per_frame,
         'init_image': init_image,
+        'render_mask': render_mask,
         'init_scale': init_scale,
         'skip_steps': skip_steps,
         # 'zoom_per_frame': zoom_per_frame,
@@ -1796,6 +1831,19 @@ def save_settings():
         'RN50x4': RN50x4,
         'RN50x16': RN50x16,
         'RN50x64': RN50x64,
+        'ViTB32_laion2b_e16': ViTB32_laion2b_e16,
+        'ViTB32_laion400m_e31': ViTB32_laion400m_e31,
+        'ViTB32_laion400m_32': ViTB32_laion400m_32,
+        'ViTB32quickgelu_laion400m_e31': ViTB32quickgelu_laion400m_e31,
+        'ViTB32quickgelu_laion400m_e32': ViTB32quickgelu_laion400m_e32,
+        'ViTB16_laion400m_e31': ViTB16_laion400m_e31,
+        'ViTB16_laion400m_e32': ViTB16_laion400m_e32,
+        'RN50_yffcc15m': RN50_yffcc15m,
+        'RN50_cc12m': RN50_cc12m,
+        'RN50_quickgelu_yfcc15m': RN50_quickgelu_yfcc15m,
+        'RN50_quickgelu_cc12m': RN50_quickgelu_cc12m,
+        'RN101_yfcc15m': RN101_yfcc15m,
+        'RN101_quickgelu_yfcc15m': RN101_quickgelu_yfcc15m,
         'cut_overview': str(cut_overview),
         'cut_innercut': str(cut_innercut),
         'cut_ic_pow': og_cut_ic_pow,
@@ -1831,7 +1879,6 @@ def save_settings():
         'low_brightness_adjust': low_brightness_adjust,
         'sharpen_preset': sharpen_preset,
         'keep_unsharp': keep_unsharp,
-        'gobig_orientation': gobig_orientation,
         'gobig_scale': gobig_scale,
         'symmetry_loss_v': symmetry_loss_v,
         'symmetry_loss_h': symmetry_loss_h,
@@ -2054,9 +2101,9 @@ class Diff_Model:
     resblock_updown: bool
     use_scale_shift_norm: bool
     timestep_respacing: str
+    use_fp16: bool
     num_head_channels: int = -1
     num_heads: int = 1
-    use_fp16: bool = True
     slink: str = "none"
 
 
@@ -2083,14 +2130,15 @@ try:
             diffusion_model.num_channels = diffusion_models_file[user_supplied_name]['num_channels']
             if is_json_key_present(diffusion_models_file, user_supplied_name, 'num_head_channels'):
                 diffusion_model.num_head_channels = diffusion_models_file[user_supplied_name]['num_head_channels']
-            if is_json_key_present(diffusion_models_file, user_supplied_name, 'num_heads'):
-                print(f'Setting num heads to {diffusion_models_file[user_supplied_name]["num_heads"]}')
             diffusion_model.num_heads = diffusion_models_file[user_supplied_name]['num_heads']
             diffusion_model.num_res_blocks = diffusion_models_file[user_supplied_name]['num_res_blocks']
             diffusion_model.resblock_updown = diffusion_models_file[user_supplied_name]['resblock_updown']
             diffusion_model.use_scale_shift_norm = diffusion_models_file[user_supplied_name]['use_scale_shift_norm']
             if is_json_key_present(diffusion_models_file, user_supplied_name, 'use_fp16'):
-                diffusion_model.use_fp16 = diffusion_models_file[user_supplied_name]['use_fp16']
+                if fp16_mode == True:
+                    diffusion_model.use_fp16 = diffusion_models_file[user_supplied_name]['use_fp16']
+                else:
+                    diffusion_model.use_fp16 = False # Can't use fp16 when in CPU mode
             if is_json_key_present(diffusion_models_file, user_supplied_name, 'timestep_respacing'):
                 diffusion_model.timestep_respacing = diffusion_models_file[user_supplied_name]['timestep_respacing']
             else:
@@ -2198,14 +2246,6 @@ def load_secondary_model():
         secondary_model.eval().requires_grad_(False).to(device)
     return secondary_model
 
-
-def load_clip_model(model_name: Text):
-    print(f'-- {model_name}')
-    with track_model_vram(device, model_name):
-        loaded_model = clip.load(model_name,  jit=False, device=device)[0].eval().requires_grad_(False)
-    return loaded_model
-
-
 def load_lpips_model(net: str = 'vgg'):
     with track_model_vram(device, "LPIPS model"):
         lpips_model = lpips.LPIPS(net=net, verbose=False).to(device)
@@ -2222,7 +2262,20 @@ model_load_name_map = {
     'RN50x4': 'RN50x4',
     'RN50x16': 'RN50x16',
     'RN50x64': 'RN50x64',
-    'RN101': 'RN101'
+    'RN101': 'RN101',
+    'ViTB32_laion2b_e16': 'ViTB32_laion2b_e16',
+    'ViTB32_laion400m_e31': 'ViTB32_laion400m_e31',
+    'ViTB32_laion400m_32': 'ViTB32_laion400m_32',
+    'ViTB32quickgelu_laion400m_e31': 'ViTB32quickgelu_laion400m_e31',
+    'ViTB32quickgelu_laion400m_e32': 'ViTB32quickgelu_laion400m_e32',
+    'ViTB16_laion400m_e31': 'ViTB16_laion400m_e31',
+    'ViTB16_laion400m_e32': 'ViTB16_laion400m_e32',
+    'RN50_yffcc15m': 'RN50_yffcc15m',
+    'RN50_cc12m': 'RN50_cc12m',
+    'RN50_quickgelu_yfcc15m': 'RN50_quickgelu_yfcc15m',
+    'RN50_quickgelu_cc12m': 'RN50_quickgelu_cc12m',
+    'RN101_yfcc15m': 'RN101_yfcc15m',
+    'RN101_quickgelu_yfcc15m': 'RN101_quickgelu_yfcc15m'
 }
 
 
@@ -2757,13 +2810,6 @@ def mergeimgs(source, slices):
     global slices_todo
     source.convert("RGBA")
     width, height = source.size
-    if gobig_horizontal == True:
-        slice_height = int(height / slices_todo)
-        slice_height = 64 * math.floor(slice_height / 64)  # round slice height down to the nearest 64
-        paste_y = 0
-        for slice in slices:
-            source.alpha_composite(slice, (0, paste_y))
-            paste_y += slice_height
     if gobig_vertical == True:
         slice_width, slice_height = slices[0].size
         slice_width -= 64  # remove overlap
@@ -2784,17 +2830,6 @@ def slice(source, rmask):
     x = 0
     y = 0
     i = 0
-    if gobig_horizontal == True:
-        slice_height = int(height / slices_todo)
-        slice_height = 64 * math.floor(slice_height / 64)  # round slice height down to the nearest 64
-        slice_height += overlap
-        bottomy = slice_height
-        while i < slices_todo:
-            slices.append(source.crop((x, y, width, bottomy)))
-            slice_rmasks.append(rmask.crop((x, y, width, bottomy)))
-            y += slice_height - overlap
-            bottomy = y + slice_height
-            i += 1
     if gobig_vertical == True:
         slice_width = int(width / slices_todo)
         slice_width = 64 * math.floor(slice_width / 64)  # round slice width down to the nearest 64
@@ -2925,17 +2960,6 @@ try:
                     else:
                         alpha_gradient.putpixel((x, 0), 255)
                 alpha = alpha_gradient.resize(betterslices[0].size, Image.Resampling.BICUBIC)
-            # For each slice, use addalpha to add an alpha mask
-            if gobig_horizontal:
-                alpha_gradient = Image.new('L', (1, args.side_y), color=0xFF)
-                a = 0
-                for x in range(args.side_y):
-                    a += 4  # add 4 to alpha at each pixel, to give us a 64 pixel overlap gradient
-                    if a < 255:
-                        alpha_gradient.putpixel((0, x), a)
-                    else:
-                        alpha_gradient.putpixel((0, x), 255)
-                alpha = alpha_gradient.resize(betterslices[0].size, Image.Resampling.BICUBIC)
             # add the generated alpha channel to a mask image
             mask = Image.new('RGBA', (args.side_x, args.side_y), color=0)
             mask.putalpha(alpha)
@@ -2948,7 +2972,7 @@ try:
             final_output.save(final_output_image)
             print(f'\n\nGO BIG is complete!\n\n ***** NOTE *****\nYour output is saved as {final_output_image}!')
             # set everything back for the next image in the batch
-            args = temp_args
+            args = temp_args            
         gc.collect()
         if "cuda" in str(device):
             with torch.cuda.device(device):

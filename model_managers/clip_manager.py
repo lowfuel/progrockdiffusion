@@ -4,6 +4,7 @@ import os
 import numexpr
 import torch
 import clip
+import open_clip
 from PIL import Image, ImageDraw
 from torchvision import transforms
 from torchvision.transforms import functional as transforms_functional
@@ -24,7 +25,20 @@ CLIP_NAME_MAP = {
     'RN50x4': 'RN50x4',
     'RN50x16': 'RN50x16',
     'RN50x64': 'RN50x64',
-    'RN101': 'RN101'
+    'RN101': 'RN101',
+    'ViTB32_laion2b_e16': ['ViT-B-32', 'laion2b_e16'],
+    'ViTB32_laion400m_e31': ['ViT-B-32', 'laion400m_e31'],
+    'ViTB32_laion400m_32': ['ViT-B-32', 'laion400m_e32'],
+    'ViTB32quickgelu_laion400m_e31': ['ViT-B-32-quickgelu', 'laion400m_e31'],
+    'ViTB32quickgelu_laion400m_e32': ['ViT-B-32-quickgelu', 'laion400m_e32'],
+    'ViTB16_laion400m_e31': ['ViT-B-16', 'laion400m_e31'],
+    'ViTB16_laion400m_e32': ['ViT-B-16', 'laion400m_e32'],
+    'RN50_yffcc15m': ['RN50', 'yfcc15m'],
+    'RN50_cc12m': ['RN50', 'cc12m'],
+    'RN50_quickgelu_yfcc15m': ['RN50-quickgelu', 'yfcc15m'],
+    'RN50_quickgelu_cc12m': ['RN50-quickgelu', 'cc12m'],
+    'RN101_yfcc15m': ['RN101', 'yfcc15m'],
+    'RN101_quickgelu_yfcc15m': ['RN101-quickgelu', 'yfcc15m']
 }
 
 # These must be norms collected from image rgb channel values?
@@ -69,16 +83,25 @@ class ClipManager:
         else:
             vals = prompt.rsplit(':', 1)
         vals = vals + ['', '1'][len(vals):]
-        return vals[0], float(numexpr.evaluate(vals[1], local_dict=vars))
+        return vals[0], float(numexpr.evaluate(vals[1].strip(), local_dict=vars))
 
     def load(self):
-        with track_model_vram(self.device, f"Loading {self.name}"):
-            print(f'--{self.name}')
-            self.model = clip.load(
-                CLIP_NAME_MAP[self.name],
-                jit=False,
-                device=self.device
-            )[0].eval().requires_grad_(False)
+        if type(CLIP_NAME_MAP[self.name]) == str: #OpenAI CLIP model
+            with track_model_vram(self.device, f"Loading {self.name}"):
+                print(f'--{self.name}')
+                self.model = clip.load(
+                    CLIP_NAME_MAP[self.name],
+                    jit=False,
+                    device=self.device
+                )[0].eval().requires_grad_(False)
+
+        if type(CLIP_NAME_MAP[self.name]) == list: #Open_Clip model
+            with track_model_vram(self.device, f"Loading {self.name[0]}"):
+                print(f'--{self.name[0]}')
+                self.model = open_clip.create_model(
+                    CLIP_NAME_MAP[self.name][0],
+                    pretrained=CLIP_NAME_MAP[self.name][1]
+                ).eval().requires_grad_(False).to(self.device)
 
     def embed_text_prompts(
         self,
